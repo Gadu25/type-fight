@@ -71,15 +71,15 @@ func (r *Routes) handleRoomByID(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	infos := room.GetPlayerInfos()
-	players := make([]ws.PlayerInfo, len(infos))
-	for i, p := range infos {
+	roomInfo := room.GetRoomInfo()
+	players := make([]ws.PlayerInfo, len(roomInfo.Players))
+	for i, p := range roomInfo.Players {
 		players[i] = ws.PlayerInfo{ID: p.ID, Name: p.Name}
 	}
 
 	response := map[string]interface{}{
 		"id":      room.ID,
-		"status":  room.Status,
+		"status":  roomInfo.Status,
 		"players": players,
 	}
 

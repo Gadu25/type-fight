@@ -146,7 +146,7 @@ func (rm *RoomManager) UpdatePlayerPosition(roomID, playerID string, position in
 	return wpm, nil
 }
 
-func (r *Room) GetPlayerInfos() []PlayerInfo {
+func (r *Room) GetRoomInfo() RoomInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -157,7 +157,15 @@ func (r *Room) GetPlayerInfos() []PlayerInfo {
 			Name: p.Name,
 		})
 	}
-	return infos
+	return RoomInfo{
+		Status:  r.Status,
+		Players: infos,
+	}
+}
+
+type RoomInfo struct {
+	Status  string       `json:"status"`
+	Players []PlayerInfo `json:"players"`
 }
 
 type PlayerInfo struct {
