@@ -26,6 +26,14 @@ func CalculateAccuracy(correct, total int) float64 {
 	return float64(correct) / float64(total) * 100.0
 }
 
+// PlayerResult holds a player's game result for winner determination
+type PlayerResult struct {
+	ID         string
+	Finished   bool
+	FinishTime time.Time
+	Accuracy   float64
+}
+
 // CheckWinner determines the winner based on finish time and accuracy
 // Returns empty string if tie
 func CheckWinner(players []PlayerResult) string {

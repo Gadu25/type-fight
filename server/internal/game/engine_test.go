@@ -103,9 +103,4 @@ func TestCheckTimeout(t *testing.T) {
 	}
 }
 
-type PlayerResult struct {
-	ID         string
-	Finished   bool
-	FinishTime time.Time
-	Accuracy   float64
-}
+
