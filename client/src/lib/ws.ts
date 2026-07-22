@@ -3,6 +3,14 @@ export type PlayerInfo = {
   name: string;
 };
 
+export type ResultInfo = {
+  player_id: string;
+  name: string;
+  wpm: number;
+  accuracy: number;
+  position: number;
+};
+
 export type ClientMessage = {
   type: 'join' | 'ready' | 'start_game' | 'keystroke';
   player_name?: string;
