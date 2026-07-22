@@ -122,6 +122,30 @@ func (rm *RoomManager) GetRoom(roomID string) *Room {
 	return rm.rooms[roomID]
 }
 
+func (rm *RoomManager) UpdatePlayerPosition(roomID, playerID string, position int) (float64, error) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+	
+	if !exists {
+		return 0, fmt.Errorf("room not found")
+	}
+	
+	room.mu.Lock()
+	defer room.mu.Unlock()
+	
+	player, exists := room.Players[playerID]
+	if !exists {
+		return 0, fmt.Errorf("player not in room")
+	}
+	
+	player.Position = position
+	elapsed := time.Since(player.StartTime)
+	wpm := CalculateWPM(position, elapsed)
+	
+	return wpm, nil
+}
+
 func generateID() string {
 	b := make([]byte, 8)
 	rand.Read(b)

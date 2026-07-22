@@ -3,7 +3,6 @@ package ws
 import (
 	"encoding/json"
 	"log"
-	"time"
 
 	"github.com/type-fight/server/internal/game"
 )
@@ -66,6 +65,8 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 }
 
 func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
+	// Intentional no-op for MVP. Ready state is not tracked yet;
+	// the host can start the game once both players have joined.
 }
 
 func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
@@ -96,22 +97,11 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 }
 
 func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg ClientMessage) {
-	room := h.roomManager.GetRoom(roomID)
-	if room == nil {
-		h.sendError(conn, "room not found")
+	wpm, err := h.roomManager.UpdatePlayerPosition(roomID, playerID, msg.Position)
+	if err != nil {
+		h.sendError(conn, err.Error())
 		return
 	}
-
-	player, exists := room.Players[playerID]
-	if !exists {
-		h.sendError(conn, "player not in room")
-		return
-	}
-
-	player.Position = msg.Position
-
-	elapsed := time.Since(player.StartTime)
-	wpm := game.CalculateWPM(msg.Position, elapsed)
 
 	response := ServerMessage{
 		Type:     "progress",

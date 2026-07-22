@@ -1,7 +1,5 @@
 package ws
 
-import "time"
-
 // Client -> Server messages
 type ClientMessage struct {
 	Type       string `json:"type"`
@@ -40,25 +38,4 @@ type ResultInfo struct {
 
 type ErrorMessage struct {
 	Message string `json:"message"`
-}
-
-// Game state tracking
-type PlayerState struct {
-	ID         string
-	Name       string
-	Position   int
-	Correct    int
-	Total      int
-	StartTime  time.Time
-	Finished   bool
-	FinishTime time.Time
-}
-
-type RoomState struct {
-	ID        string
-	Players   map[string]*PlayerState
-	HostID    string
-	Status    string // "waiting", "playing", "finished"
-	Text      string
-	GameStart time.Time
 }
