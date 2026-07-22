@@ -43,9 +43,19 @@ func TestServerMessageMarshal(t *testing.T) {
 	}
 
 	var result map[string]interface{}
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
 
 	if result["type"] != "error" {
 		t.Errorf("got type %v, want 'error'", result["type"])
+	}
+
+	errMap, ok := result["error"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected 'error' to be an object, got %T", result["error"])
+	}
+	if errMap["message"] != "Room is full" {
+		t.Errorf("got error.message %v, want 'Room is full'", errMap["message"])
 	}
 }
