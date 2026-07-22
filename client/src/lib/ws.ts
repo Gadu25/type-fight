@@ -1,3 +1,8 @@
+export type PlayerInfo = {
+  id: string;
+  name: string;
+};
+
 export type ClientMessage = {
   type: 'join' | 'ready' | 'start_game' | 'keystroke';
   player_name?: string;
