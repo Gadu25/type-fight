@@ -96,13 +96,19 @@ func (r *Routes) handleWebSocket(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	playerID := generatePlayerID()
+	playerID := req.URL.Query().Get("player_id")
+	if playerID == "" {
+		playerID = generatePlayerID()
+	}
 
 	go r.handleWebSocketConnection(conn, roomID, playerID)
 }
 
 func (r *Routes) handleWebSocketConnection(conn *websocket.Conn, roomID, playerID string) {
-	defer conn.Close()
+	defer func() {
+		r.hub.Unregister(&ws.Client{RoomID: roomID, PlayerID: playerID})
+		conn.Close()
+	}()
 
 	for {
 		_, message, err := conn.ReadMessage()

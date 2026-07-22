@@ -50,7 +50,7 @@ func (h *Hub) Run() {
 			h.mu.Lock()
 			clients := h.clients[client.RoomID]
 			for i, c := range clients {
-				if c == client {
+				if c.PlayerID == client.PlayerID {
 					h.clients[client.RoomID] = append(clients[:i], clients[i+1:]...)
 					break
 				}
@@ -86,4 +86,23 @@ func (h *Hub) Unregister(client *Client) {
 
 func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
 	h.broadcast <- &BroadcastMessage{RoomID: roomID, Message: message}
+}
+
+func (h *Hub) BroadcastToRoomExcept(roomID, excludePlayerID string, message []byte) {
+	h.mu.RLock()
+	snapshot := make([]*Client, len(h.clients[roomID]))
+	copy(snapshot, h.clients[roomID])
+	h.mu.RUnlock()
+
+	for _, client := range snapshot {
+		if client.PlayerID != excludePlayerID {
+			client.Conn.WriteMessage(1, message)
+		}
+	}
+}
+
+func (h *Hub) GetClients(roomID string) []*Client {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.clients[roomID]
 }

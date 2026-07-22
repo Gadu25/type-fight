@@ -51,11 +51,6 @@ func (rm *RoomManager) CreateRoom(hostID, hostName string) *Room {
 		Status:  "waiting",
 	}
 	
-	room.Players[hostID] = &PlayerState{
-		ID:   hostID,
-		Name: hostName,
-	}
-	
 	rm.rooms[room.ID] = room
 	return room
 }
@@ -71,6 +66,11 @@ func (rm *RoomManager) JoinRoom(roomID, playerID, playerName string) error {
 	
 	room.mu.Lock()
 	defer room.mu.Unlock()
+	
+	if _, exists := room.Players[playerID]; exists {
+		room.Players[playerID].Name = playerName
+		return nil
+	}
 	
 	if len(room.Players) >= 2 {
 		return fmt.Errorf("room is full")

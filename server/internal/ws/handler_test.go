@@ -38,24 +38,60 @@ func TestHandleJoin(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	if len(conn.messages) == 0 {
-		t.Error("expected at least one message to be broadcast")
+		t.Error("expected at least one message to be sent")
 	}
 
 	var resp ServerMessage
 	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
-	if resp.Type != "player_joined" {
-		t.Errorf("expected type 'player_joined', got '%s'", resp.Type)
+	if resp.Type != "player_list" {
+		t.Errorf("expected type 'player_list', got '%s'", resp.Type)
 	}
-	if resp.Player == nil {
-		t.Fatal("expected player info")
+	if len(resp.Players) != 1 {
+		t.Errorf("expected 1 player in list, got %d", len(resp.Players))
 	}
-	if resp.Player.ID != "player1" {
-		t.Errorf("expected player ID 'player1', got '%s'", resp.Player.ID)
+	if resp.Players[0].ID != "player1" {
+		t.Errorf("expected player ID 'player1', got '%s'", resp.Players[0].ID)
 	}
-	if resp.Player.Name != "Test Player" {
-		t.Errorf("expected player name 'Test Player', got '%s'", resp.Player.Name)
+	if resp.Players[0].Name != "Test Player" {
+		t.Errorf("expected player name 'Test Player', got '%s'", resp.Players[0].Name)
+	}
+}
+
+func TestHandleJoinSeesExistingPlayers(t *testing.T) {
+	conn1 := &TestConnection{}
+	conn2 := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	// Player 1 joins
+	msg1 := ClientMessage{Type: "join", PlayerName: "Player 1"}
+	data1, _ := json.Marshal(msg1)
+	handler.HandleMessage(conn1, room.ID, "player1", data1)
+	time.Sleep(10 * time.Millisecond)
+
+	// Player 2 joins
+	msg2 := ClientMessage{Type: "join", PlayerName: "Player 2"}
+	data2, _ := json.Marshal(msg2)
+	handler.HandleMessage(conn2, room.ID, "player2", data2)
+	time.Sleep(10 * time.Millisecond)
+
+	// Player 2 should receive player_list with both players
+	var resp ServerMessage
+	if err := json.Unmarshal(conn2.messages[0], &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if resp.Type != "player_list" {
+		t.Errorf("expected type 'player_list', got '%s'", resp.Type)
+	}
+	if len(resp.Players) != 2 {
+		t.Errorf("expected 2 players in list, got %d", len(resp.Players))
 	}
 }
 
@@ -68,13 +104,17 @@ func TestHandleKeystroke(t *testing.T) {
 	rm := game.NewRoomManager()
 	room := rm.CreateRoom("host1", "Host Player")
 
-	// Join second player so we can start the game
-	err := rm.JoinRoom(room.ID, "player1", "Test Player")
+	// Join both players
+	err := rm.JoinRoom(room.ID, "host1", "Host")
 	if err != nil {
-		t.Fatalf("failed to join room: %v", err)
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
 	}
 
-	// Start the game so players have start times
+	// Start the game
 	err = rm.StartGame(room.ID, "host1")
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)

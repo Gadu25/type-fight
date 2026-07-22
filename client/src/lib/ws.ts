@@ -42,10 +42,16 @@ export type MessageHandler = (message: ServerMessage) => void;
 
 export function createWebSocket(
   roomId: string,
-  onMessage: MessageHandler
+  onMessage: MessageHandler,
+  onOpen?: () => void
 ): WebSocket {
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
-  const ws = new WebSocket(`${wsUrl}/ws/room/${roomId}`);
+  const playerId = localStorage.getItem('playerId') || '';
+  const ws = new WebSocket(`${wsUrl}/ws/room/${roomId}?player_id=${playerId}`);
+  
+  ws.onopen = () => {
+    onOpen?.();
+  };
   
   ws.onmessage = (event) => {
     const message: ServerMessage = JSON.parse(event.data);

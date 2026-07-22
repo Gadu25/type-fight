@@ -52,16 +52,35 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 	}
 	h.hub.Register(client)
 
-	response := ServerMessage{
+	room := h.roomManager.GetRoom(roomID)
+	if room == nil {
+		return
+	}
+
+	players := make([]PlayerInfo, 0)
+	for _, p := range room.Players {
+		players = append(players, PlayerInfo{
+			ID:   p.ID,
+			Name: p.Name,
+		})
+	}
+
+	listMsg := ServerMessage{
+		Type:    "player_list",
+		Players: players,
+	}
+	data, _ := json.Marshal(listMsg)
+	conn.WriteMessage(1, data)
+
+	broadcastMsg := ServerMessage{
 		Type: "player_joined",
 		Player: &PlayerInfo{
 			ID:   playerID,
 			Name: msg.PlayerName,
 		},
 	}
-
-	data, _ := json.Marshal(response)
-	h.hub.BroadcastToRoom(roomID, data)
+	broadcastData, _ := json.Marshal(broadcastMsg)
+	h.hub.BroadcastToRoomExcept(roomID, playerID, broadcastData)
 }
 
 func (h *Handler) handleReady(conn Connection, roomID, playerID string) {

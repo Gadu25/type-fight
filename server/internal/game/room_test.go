@@ -29,7 +29,12 @@ func TestJoinRoom(t *testing.T) {
 	rm := NewRoomManager()
 	room := rm.CreateRoom("host-id", "Host Player")
 	
-	err := rm.JoinRoom(room.ID, "player-id", "Player 2")
+	err := rm.JoinRoom(room.ID, "host-id", "Host Player")
+	if err != nil {
+		t.Fatalf("expected no error for host join, got %v", err)
+	}
+	
+	err = rm.JoinRoom(room.ID, "player-id", "Player 2")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -40,10 +45,31 @@ func TestJoinRoom(t *testing.T) {
 	}
 }
 
+func TestJoinRoomReconnect(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host-id", "Host Player")
+	
+	rm.JoinRoom(room.ID, "host-id", "Host Player")
+	
+	err := rm.JoinRoom(room.ID, "host-id", "Host Updated")
+	if err != nil {
+		t.Fatalf("expected no error on reconnect, got %v", err)
+	}
+	
+	updatedRoom := rm.GetRoom(room.ID)
+	if len(updatedRoom.Players) != 1 {
+		t.Errorf("expected 1 player after reconnect, got %d", len(updatedRoom.Players))
+	}
+	if updatedRoom.Players["host-id"].Name != "Host Updated" {
+		t.Errorf("expected updated name, got %s", updatedRoom.Players["host-id"].Name)
+	}
+}
+
 func TestJoinRoomFull(t *testing.T) {
 	rm := NewRoomManager()
 	room := rm.CreateRoom("host-id", "Host Player")
 	
+	rm.JoinRoom(room.ID, "host-id", "Host")
 	rm.JoinRoom(room.ID, "player-id", "Player 2")
 	
 	err := rm.JoinRoom(room.ID, "player-id-3", "Player 3")
@@ -55,6 +81,7 @@ func TestJoinRoomFull(t *testing.T) {
 func TestStartGame(t *testing.T) {
 	rm := NewRoomManager()
 	room := rm.CreateRoom("host-id", "Host Player")
+	rm.JoinRoom(room.ID, "host-id", "Host")
 	rm.JoinRoom(room.ID, "player-id", "Player 2")
 	
 	err := rm.StartGame(room.ID, "host-id")
@@ -75,6 +102,7 @@ func TestStartGame(t *testing.T) {
 func TestStartGameNotHost(t *testing.T) {
 	rm := NewRoomManager()
 	room := rm.CreateRoom("host-id", "Host Player")
+	rm.JoinRoom(room.ID, "host-id", "Host")
 	rm.JoinRoom(room.ID, "player-id", "Player 2")
 	
 	err := rm.StartGame(room.ID, "player-id")
