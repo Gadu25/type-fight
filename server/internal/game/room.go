@@ -146,6 +146,25 @@ func (rm *RoomManager) UpdatePlayerPosition(roomID, playerID string, position in
 	return wpm, nil
 }
 
+func (r *Room) GetPlayerInfos() []PlayerInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	infos := make([]PlayerInfo, 0, len(r.Players))
+	for _, p := range r.Players {
+		infos = append(infos, PlayerInfo{
+			ID:   p.ID,
+			Name: p.Name,
+		})
+	}
+	return infos
+}
+
+type PlayerInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 func generateID() string {
 	b := make([]byte, 8)
 	rand.Read(b)
