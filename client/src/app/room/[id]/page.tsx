@@ -38,6 +38,7 @@ export default function RoomPage() {
   const pendingPositionRef = useRef(0);
   const lastSentPositionRef = useRef(0);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const storedPlayerId = localStorage.getItem('playerId');
@@ -63,6 +64,7 @@ export default function RoomPage() {
       }
     );
     setWs(websocket);
+    wsRef.current = websocket;
 
     return () => {
       if (wsOpenedRef.current) {
@@ -104,7 +106,6 @@ export default function RoomPage() {
           setPlayers(message.players);
           setGameState('countdown');
           setCurrentPosition(0);
-          setTimeLeft(GAME_TIME_LIMIT);
           setEnemyPosition(0);
           setToastMessage(null);
 
@@ -181,8 +182,8 @@ export default function RoomPage() {
     lastSentPositionRef.current = 0;
     if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     syncIntervalRef.current = setInterval(() => {
-      if (ws && pendingPositionRef.current !== lastSentPositionRef.current) {
-        sendMessage(ws, {
+      if (wsRef.current && pendingPositionRef.current !== lastSentPositionRef.current) {
+        sendMessage(wsRef.current, {
           type: 'keystroke',
           char: '',
           position: pendingPositionRef.current,
@@ -190,7 +191,7 @@ export default function RoomPage() {
         lastSentPositionRef.current = pendingPositionRef.current;
       }
     }, 100);
-  }, [ws]);
+  }, []);
 
   const timerColor = timeLeft <= 5 ? 'text-red-400' : timeLeft <= 10 ? 'text-yellow-400' : 'text-gray-400';
 
