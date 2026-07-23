@@ -34,6 +34,9 @@ export default function RoomPage() {
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsOpenedRef = useRef(false);
+  const pendingPositionRef = useRef(0);
+  const lastSentPositionRef = useRef(0);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const storedPlayerId = localStorage.getItem('playerId');
@@ -65,6 +68,7 @@ export default function RoomPage() {
         websocket.close();
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     };
   }, [roomId]);
 
@@ -116,6 +120,21 @@ export default function RoomPage() {
               return prev - 1;
             });
           }, 1000);
+
+          // Sync position every 100ms
+          pendingPositionRef.current = 0;
+          lastSentPositionRef.current = 0;
+          if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+          syncIntervalRef.current = setInterval(() => {
+            if (ws && pendingPositionRef.current !== lastSentPositionRef.current) {
+              sendMessage(ws, {
+                type: 'keystroke',
+                char: '',
+                position: pendingPositionRef.current,
+              });
+              lastSentPositionRef.current = pendingPositionRef.current;
+            }
+          }, 100);
         }
         break;
 
@@ -140,6 +159,7 @@ export default function RoomPage() {
       case 'game_over':
         if (message.results && message.winner !== undefined) {
           if (timerRef.current) clearInterval(timerRef.current);
+          if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
           setResults(message.results);
           setWinner(message.winner);
           setGameState('finished');
@@ -158,14 +178,8 @@ export default function RoomPage() {
   }, [handleMessage]);
 
   const handleKeystroke = (char: string, position: number) => {
-    if (ws) {
-      sendMessage(ws, {
-        type: 'keystroke',
-        char,
-        position,
-      });
-      setCurrentPosition(position);
-    }
+    pendingPositionRef.current = position;
+    setCurrentPosition(position);
   };
 
   const handleStartGame = () => {
