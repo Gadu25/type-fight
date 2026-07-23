@@ -6,6 +6,8 @@ import { createWebSocket, sendMessage, ServerMessage, ResultInfo } from '@/lib/w
 import PlayerList from '@/components/PlayerList';
 import TypingArea from '@/components/TypingArea';
 import Results from '@/components/Results';
+import EnemyPreview from '@/components/EnemyPreview';
+import Toast from '@/components/Toast';
 
 type GameState = 'lobby' | 'playing' | 'finished';
 
@@ -26,6 +28,9 @@ export default function RoomPage() {
   const [winner, setWinner] = useState<string | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [timeLeft, setTimeLeft] = useState(GAME_TIME_LIMIT);
+  const [enemyPosition, setEnemyPosition] = useState(0);
+  const [enemyName, setEnemyName] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsOpenedRef = useRef(false);
@@ -95,6 +100,11 @@ export default function RoomPage() {
           setGameState('playing');
           setCurrentPosition(0);
           setTimeLeft(GAME_TIME_LIMIT);
+          setEnemyPosition(0);
+          setToastMessage(null);
+
+          const enemy = message.players.find(p => p.id !== playerId);
+          if (enemy) setEnemyName(enemy.name);
 
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
@@ -112,6 +122,18 @@ export default function RoomPage() {
       case 'progress':
         if (message.player_id === playerId) {
           setCurrentPosition(message.position || 0);
+        } else {
+          setEnemyPosition(message.position || 0);
+          if (!enemyName && message.player_id) {
+            const enemy = players.find(p => p.id === message.player_id);
+            if (enemy) setEnemyName(enemy.name);
+          }
+        }
+        break;
+
+      case 'player_finished':
+        if (message.player_finished) {
+          setToastMessage(`${message.player_finished.name} finished the text!`);
         }
         break;
 
@@ -128,7 +150,7 @@ export default function RoomPage() {
         console.error('Server error:', message.error?.message);
         break;
     }
-  }, [playerId, hostId]);
+  }, [playerId, hostId, enemyName, players]);
 
   useEffect(() => {
     handleMessageRef.current = handleMessage;
@@ -196,12 +218,21 @@ export default function RoomPage() {
             )}
 
             {gameState === 'playing' && (
-              <TypingArea
-                text={text}
-                onKeystroke={handleKeystroke}
-                isActive={true}
-                currentPosition={currentPosition}
-              />
+              <div className="space-y-4">
+                {enemyName && (
+                  <EnemyPreview
+                    text={text}
+                    enemyPosition={enemyPosition}
+                    enemyName={enemyName}
+                  />
+                )}
+                <TypingArea
+                  text={text}
+                  onKeystroke={handleKeystroke}
+                  isActive={true}
+                  currentPosition={currentPosition}
+                />
+              </div>
             )}
 
             {gameState === 'finished' && results && (
@@ -214,6 +245,12 @@ export default function RoomPage() {
           </div>
         </div>
       </div>
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          onDismiss={() => setToastMessage(null)}
+        />
+      )}
     </main>
   );
 }
