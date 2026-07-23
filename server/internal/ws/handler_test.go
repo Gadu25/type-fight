@@ -159,3 +159,140 @@ func TestHandleKeystroke(t *testing.T) {
 		t.Errorf("expected position 5, got %d", resp.Position)
 	}
 }
+
+func TestHandleKeystrokePlayerFinished(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	// Get the text length to know what position means "finished"
+	room = rm.GetRoom(room.ID)
+	textLen := len(room.Text)
+
+	hub.Register(&Client{
+		Conn:     conn,
+		RoomID:   room.ID,
+		PlayerID: "player1",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	msg := ClientMessage{
+		Type:     "keystroke",
+		Char:     "a",
+		Position: textLen,
+	}
+
+	data, _ := json.Marshal(msg)
+	handler.HandleMessage(conn, room.ID, "player1", data)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Should have at least 2 messages: progress + player_finished
+	if len(conn.messages) < 2 {
+		t.Fatalf("expected at least 2 messages (progress + player_finished), got %d", len(conn.messages))
+	}
+
+	// First message should be progress
+	var progressMsg ServerMessage
+	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+		t.Fatalf("failed to unmarshal progress message: %v", err)
+	}
+	if progressMsg.Type != "progress" {
+		t.Errorf("expected first message type 'progress', got '%s'", progressMsg.Type)
+	}
+
+	// Second message should be player_finished
+	var finishedMsg ServerMessage
+	if err := json.Unmarshal(conn.messages[1], &finishedMsg); err != nil {
+		t.Fatalf("failed to unmarshal player_finished message: %v", err)
+	}
+	if finishedMsg.Type != "player_finished" {
+		t.Errorf("expected second message type 'player_finished', got '%s'", finishedMsg.Type)
+	}
+	if finishedMsg.PlayerFinished == nil {
+		t.Fatal("expected player_finished to have PlayerInfo")
+	}
+	if finishedMsg.PlayerFinished.ID != "player1" {
+		t.Errorf("expected player ID 'player1', got '%s'", finishedMsg.PlayerFinished.ID)
+	}
+	if finishedMsg.PlayerFinished.Name != "Test Player" {
+		t.Errorf("expected player name 'Test Player', got '%s'", finishedMsg.PlayerFinished.Name)
+	}
+}
+
+func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{
+		Conn:     conn,
+		RoomID:   room.ID,
+		PlayerID: "player1",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	msg := ClientMessage{
+		Type:     "keystroke",
+		Char:     "a",
+		Position: 5,
+	}
+
+	data, _ := json.Marshal(msg)
+	handler.HandleMessage(conn, room.ID, "player1", data)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Should only have 1 message: progress (no player_finished)
+	if len(conn.messages) != 1 {
+		t.Fatalf("expected 1 message (progress only), got %d", len(conn.messages))
+	}
+
+	var progressMsg ServerMessage
+	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+		t.Fatalf("failed to unmarshal progress message: %v", err)
+	}
+	if progressMsg.Type != "progress" {
+		t.Errorf("expected type 'progress', got '%s'", progressMsg.Type)
+	}
+}

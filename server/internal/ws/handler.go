@@ -165,6 +165,23 @@ func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg 
 	data, _ := json.Marshal(response)
 	h.hub.BroadcastToRoom(roomID, data)
 
+	// Check if player just finished
+	room := h.roomManager.GetRoom(roomID)
+	if room != nil {
+		player, exists := room.Players[playerID]
+		if exists && player.Finished {
+			finishedMsg := ServerMessage{
+				Type: "player_finished",
+				PlayerFinished: &PlayerInfo{
+					ID:   playerID,
+					Name: player.Name,
+				},
+			}
+			finishedData, _ := json.Marshal(finishedMsg)
+			h.hub.BroadcastToRoom(roomID, finishedData)
+		}
+	}
+
 	completed, results, winner := h.roomManager.CheckGameCompletion(roomID)
 	if completed {
 		resultInfos := make([]ResultInfo, len(results))
