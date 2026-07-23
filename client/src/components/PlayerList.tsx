@@ -18,7 +18,7 @@ export default function PlayerList({
   onStartGame,
 }: PlayerListProps) {
   const isHost = currentPlayerId === hostId;
-  const canStart = isHost && players.length === 2 && gameStatus === 'waiting';
+  const canStart = isHost && players.length === 2 && gameStatus === 'lobby';
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
@@ -43,7 +43,7 @@ export default function PlayerList({
         ))}
       </div>
       
-      {gameStatus === 'waiting' && (
+      {gameStatus === 'lobby' && (
         <div className="mt-4">
           {canStart ? (
             <button

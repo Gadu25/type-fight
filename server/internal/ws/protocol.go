@@ -10,17 +10,18 @@ type ClientMessage struct {
 
 // Server -> Client messages
 type ServerMessage struct {
-	Type     string           `json:"type"`
-	Player   *PlayerInfo      `json:"player,omitempty"`
-	Text     string           `json:"text,omitempty"`
-	Players  []PlayerInfo     `json:"players,omitempty"`
-	PlayerID string           `json:"player_id,omitempty"`
-	Position int              `json:"position,omitempty"`
-	WPM      float64          `json:"wpm,omitempty"`
-	Accuracy float64          `json:"accuracy,omitempty"`
-	Winner   string           `json:"winner,omitempty"`
-	Results  []ResultInfo     `json:"results,omitempty"`
-	Error    *ErrorMessage    `json:"error,omitempty"`
+	Type         string           `json:"type"`
+	Player       *PlayerInfo      `json:"player,omitempty"`
+	Text         string           `json:"text,omitempty"`
+	Players      []PlayerInfo     `json:"players,omitempty"`
+	PlayerID     string           `json:"player_id,omitempty"`
+	YourPlayerID string           `json:"your_player_id,omitempty"`
+	Position     int              `json:"position,omitempty"`
+	WPM          float64          `json:"wpm,omitempty"`
+	Accuracy     float64          `json:"accuracy,omitempty"`
+	Winner       string           `json:"winner,omitempty"`
+	Results      []ResultInfo     `json:"results,omitempty"`
+	Error        *ErrorMessage    `json:"error,omitempty"`
 }
 
 type PlayerInfo struct {

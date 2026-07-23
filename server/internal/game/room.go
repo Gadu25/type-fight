@@ -126,24 +126,101 @@ func (rm *RoomManager) UpdatePlayerPosition(roomID, playerID string, position in
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	rm.mu.RUnlock()
-	
+
 	if !exists {
 		return 0, fmt.Errorf("room not found")
 	}
-	
+
 	room.mu.Lock()
 	defer room.mu.Unlock()
-	
+
 	player, exists := room.Players[playerID]
 	if !exists {
 		return 0, fmt.Errorf("player not in room")
 	}
-	
+
 	player.Position = position
 	elapsed := time.Since(player.StartTime)
 	wpm := CalculateWPM(position, elapsed)
-	
+
+	if !player.Finished && position >= len(room.Text) {
+		player.Finished = true
+		player.FinishTime = time.Now()
+	}
+
 	return wpm, nil
+}
+
+type GameOverResult struct {
+	PlayerID string  `json:"player_id"`
+	Name     string  `json:"name"`
+	WPM      float64 `json:"wpm"`
+	Accuracy float64 `json:"accuracy"`
+	Position int     `json:"position"`
+	Finished bool    `json:"finished"`
+}
+
+func (rm *RoomManager) CheckGameCompletion(roomID string) (bool, []GameOverResult, string) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return false, nil, ""
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if room.Status != "playing" {
+		return false, nil, ""
+	}
+
+	allFinished := true
+	for _, p := range room.Players {
+		if !p.Finished {
+			allFinished = false
+			break
+		}
+	}
+
+	timedOut := CheckTimeout(room.GameStart)
+
+	if !allFinished && !timedOut {
+		return false, nil, ""
+	}
+
+	room.Status = "finished"
+
+	results := make([]GameOverResult, 0, len(room.Players))
+	playerResults := make([]PlayerResult, 0, len(room.Players))
+	for _, p := range room.Players {
+		elapsed := time.Since(p.StartTime)
+		if p.Finished {
+			elapsed = p.FinishTime.Sub(p.StartTime)
+		}
+		wpm := CalculateWPM(p.Position, elapsed)
+		accuracy := CalculateAccuracy(p.Position, len(room.Text))
+
+		results = append(results, GameOverResult{
+			PlayerID: p.ID,
+			Name:     p.Name,
+			WPM:      wpm,
+			Accuracy: accuracy,
+			Position: p.Position,
+			Finished: p.Finished,
+		})
+		playerResults = append(playerResults, PlayerResult{
+			ID:         p.ID,
+			Finished:   p.Finished,
+			FinishTime: p.FinishTime,
+			Accuracy:   accuracy,
+		})
+	}
+
+	winner := CheckWinner(playerResults)
+
+	return true, results, winner
 }
 
 func (r *Room) GetRoomInfo() RoomInfo {

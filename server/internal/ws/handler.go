@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/type-fight/server/internal/game"
 )
@@ -66,8 +67,9 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 	}
 
 	listMsg := ServerMessage{
-		Type:    "player_list",
-		Players: players,
+		Type:           "player_list",
+		Players:        players,
+		YourPlayerID:   playerID,
 	}
 	data, _ := json.Marshal(listMsg)
 	conn.WriteMessage(1, data)
@@ -113,6 +115,37 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 
 	data, _ := json.Marshal(response)
 	h.hub.BroadcastToRoom(roomID, data)
+
+	go h.waitForTimeout(roomID)
+}
+
+func (h *Handler) waitForTimeout(roomID string) {
+	time.Sleep(game.GameTimeLimit + 1*time.Second)
+
+	completed, results, winner := h.roomManager.CheckGameCompletion(roomID)
+	if !completed {
+		return
+	}
+
+	resultInfos := make([]ResultInfo, len(results))
+	for i, r := range results {
+		resultInfos[i] = ResultInfo{
+			PlayerID: r.PlayerID,
+			Name:     r.Name,
+			WPM:      r.WPM,
+			Accuracy: r.Accuracy,
+			Position: r.Position,
+		}
+	}
+
+	gameOverMsg := ServerMessage{
+		Type:    "game_over",
+		Results: resultInfos,
+		Winner:  winner,
+	}
+
+	gameOverData, _ := json.Marshal(gameOverMsg)
+	h.hub.BroadcastToRoom(roomID, gameOverData)
 }
 
 func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg ClientMessage) {
@@ -131,6 +164,29 @@ func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg 
 
 	data, _ := json.Marshal(response)
 	h.hub.BroadcastToRoom(roomID, data)
+
+	completed, results, winner := h.roomManager.CheckGameCompletion(roomID)
+	if completed {
+		resultInfos := make([]ResultInfo, len(results))
+		for i, r := range results {
+			resultInfos[i] = ResultInfo{
+				PlayerID: r.PlayerID,
+				Name:     r.Name,
+				WPM:      r.WPM,
+				Accuracy: r.Accuracy,
+				Position: r.Position,
+			}
+		}
+
+		gameOverMsg := ServerMessage{
+			Type:    "game_over",
+			Results: resultInfos,
+			Winner:  winner,
+		}
+
+		gameOverData, _ := json.Marshal(gameOverMsg)
+		h.hub.BroadcastToRoom(roomID, gameOverData)
+	}
 }
 
 func (h *Handler) sendError(conn Connection, message string) {

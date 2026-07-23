@@ -24,6 +24,7 @@ export type ServerMessage = {
   text?: string;
   players?: Array<{ id: string; name: string }>;
   player_id?: string;
+  your_player_id?: string;
   position?: number;
   wpm?: number;
   accuracy?: number;

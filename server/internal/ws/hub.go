@@ -24,8 +24,9 @@ type Hub struct {
 }
 
 type BroadcastMessage struct {
-	RoomID  string
-	Message []byte
+	RoomID           string
+	Message          []byte
+	ExcludePlayerID  string
 }
 
 func NewHub() *Hub {
@@ -63,6 +64,9 @@ func (h *Hub) Run() {
 			h.mu.RUnlock()
 
 			for _, client := range clients {
+				if msg.ExcludePlayerID != "" && client.PlayerID == msg.ExcludePlayerID {
+					continue
+				}
 				client.Conn.WriteMessage(1, msg.Message)
 			}
 
@@ -89,15 +93,10 @@ func (h *Hub) BroadcastToRoom(roomID string, message []byte) {
 }
 
 func (h *Hub) BroadcastToRoomExcept(roomID, excludePlayerID string, message []byte) {
-	h.mu.RLock()
-	snapshot := make([]*Client, len(h.clients[roomID]))
-	copy(snapshot, h.clients[roomID])
-	h.mu.RUnlock()
-
-	for _, client := range snapshot {
-		if client.PlayerID != excludePlayerID {
-			client.Conn.WriteMessage(1, message)
-		}
+	h.broadcast <- &BroadcastMessage{
+		RoomID:          roomID,
+		Message:         message,
+		ExcludePlayerID: excludePlayerID,
 	}
 }
 
