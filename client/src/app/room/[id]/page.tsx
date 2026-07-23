@@ -132,7 +132,7 @@ export default function RoomPage() {
         break;
 
       case 'player_finished':
-        if (message.player_finished) {
+        if (message.player_finished && message.player_finished.id !== playerId) {
           setToastMessage(`${message.player_finished.name} finished the text!`);
         }
         break;
@@ -143,6 +143,7 @@ export default function RoomPage() {
           setResults(message.results);
           setWinner(message.winner);
           setGameState('finished');
+          setToastMessage(null);
         }
         break;
 

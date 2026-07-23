@@ -223,6 +223,26 @@ func (rm *RoomManager) CheckGameCompletion(roomID string) (bool, []GameOverResul
 	return true, results, winner
 }
 
+func (r *Room) IsPlayerFinished(playerID string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	player, exists := r.Players[playerID]
+	if !exists {
+		return false
+	}
+	return player.Finished
+}
+
+func (r *Room) GetPlayerName(playerID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	player, exists := r.Players[playerID]
+	if !exists {
+		return ""
+	}
+	return player.Name
+}
+
 func (r *Room) GetRoomInfo() RoomInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -168,13 +168,15 @@ func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg 
 	// Check if player just finished
 	room := h.roomManager.GetRoom(roomID)
 	if room != nil {
-		player, exists := room.Players[playerID]
-		if exists && player.Finished {
+		playerName := room.GetPlayerName(playerID)
+		playerFinished := room.IsPlayerFinished(playerID)
+
+		if playerFinished && playerName != "" {
 			finishedMsg := ServerMessage{
 				Type: "player_finished",
 				PlayerFinished: &PlayerInfo{
 					ID:   playerID,
-					Name: player.Name,
+					Name: playerName,
 				},
 			}
 			finishedData, _ := json.Marshal(finishedMsg)
