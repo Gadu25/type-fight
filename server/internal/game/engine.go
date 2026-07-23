@@ -28,43 +28,28 @@ func CalculateAccuracy(correct, total int) float64 {
 
 // PlayerResult holds a player's game result for winner determination
 type PlayerResult struct {
-	ID         string
-	Finished   bool
-	FinishTime time.Time
-	Accuracy   float64
+	ID       string
+	Finished bool
+	WPM      float64
+	Accuracy float64
 }
 
-// CheckWinner determines the winner based on finish time and accuracy
-// Returns empty string if tie
+// CheckWinner determines the winner based on WPM (typing speed).
+// If both finished, higher WPM wins. If neither finished, higher WPM still wins.
+// Returns empty string if WPM is tied.
 func CheckWinner(players []PlayerResult) string {
 	if len(players) == 0 {
 		return ""
 	}
 
-	// Find anyone who finished
-	var finishers []PlayerResult
-	for _, p := range players {
-		if p.Finished {
-			finishers = append(finishers, p)
-		}
+	if len(players) == 1 {
+		return players[0].ID
 	}
 
-	// If someone finished, first finisher wins
-	if len(finishers) > 0 {
-		earliest := finishers[0]
-		for _, f := range finishers[1:] {
-			if f.FinishTime.Before(earliest.FinishTime) {
-				earliest = f
-			}
-		}
-		return earliest.ID
-	}
-
-	// No finishers - highest accuracy wins
 	var winner PlayerResult
 	hasWinner := false
 	for _, p := range players {
-		if !hasWinner || p.Accuracy > winner.Accuracy {
+		if !hasWinner || p.WPM > winner.WPM {
 			winner = p
 			hasWinner = true
 		}
@@ -73,7 +58,7 @@ func CheckWinner(players []PlayerResult) string {
 	// Check for tie
 	tied := true
 	for _, p := range players {
-		if p.Accuracy != winner.Accuracy {
+		if p.WPM != winner.WPM {
 			tied = false
 			break
 		}

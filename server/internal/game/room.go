@@ -226,10 +226,10 @@ func (rm *RoomManager) CheckGameCompletion(roomID string) (bool, []GameOverResul
 			Finished: p.Finished,
 		})
 		playerResults = append(playerResults, PlayerResult{
-			ID:         p.ID,
-			Finished:   p.Finished,
-			FinishTime: p.FinishTime,
-			Accuracy:   accuracy,
+			ID:       p.ID,
+			Finished: p.Finished,
+			WPM:      wpm,
+			Accuracy: accuracy,
 		})
 	}
 

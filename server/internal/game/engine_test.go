@@ -58,28 +58,43 @@ func TestCheckWinner(t *testing.T) {
 		expected string
 	}{
 		{
-			"first finisher wins",
+			"higher WPM wins when both finished",
 			[]PlayerResult{
-				{ID: "p1", Finished: true, FinishTime: time.Now()},
-				{ID: "p2", Finished: false},
+				{ID: "p1", Finished: true, WPM: 80.0},
+				{ID: "p2", Finished: true, WPM: 90.0},
 			},
-			"p1",
+			"p2",
 		},
 		{
-			"higher accuracy wins on timeout",
+			"higher WPM wins even if finished later",
 			[]PlayerResult{
-				{ID: "p1", Finished: false, Accuracy: 90.0},
-				{ID: "p2", Finished: false, Accuracy: 80.0},
+				{ID: "p1", Finished: true, WPM: 75.0},
+				{ID: "p2", Finished: true, WPM: 85.0},
 			},
-			"p1",
+			"p2",
 		},
 		{
-			"tie on accuracy - both win",
+			"higher WPM wins when neither finished (timeout)",
 			[]PlayerResult{
-				{ID: "p1", Finished: false, Accuracy: 90.0},
-				{ID: "p2", Finished: false, Accuracy: 90.0},
+				{ID: "p1", Finished: false, WPM: 30.0, Accuracy: 90.0},
+				{ID: "p2", Finished: false, WPM: 40.0, Accuracy: 80.0},
+			},
+			"p2",
+		},
+		{
+			"tie on WPM - both win",
+			[]PlayerResult{
+				{ID: "p1", Finished: true, WPM: 80.0},
+				{ID: "p2", Finished: true, WPM: 80.0},
 			},
 			"",
+		},
+		{
+			"single player always wins",
+			[]PlayerResult{
+				{ID: "p1", Finished: true, WPM: 60.0},
+			},
+			"p1",
 		},
 	}
 
