@@ -14,9 +14,10 @@ type PlayerState struct {
 	Position   int
 	Correct    int
 	Total      int
-	StartTime  time.Time
-	Finished   bool
-	FinishTime time.Time
+	StartTime        time.Time
+	Finished         bool
+	FinishTime       time.Time
+	FirstKeystrokeTime time.Time
 }
 
 type Room struct {
@@ -140,7 +141,16 @@ func (rm *RoomManager) UpdatePlayerPosition(roomID, playerID string, position in
 	}
 
 	player.Position = position
-	elapsed := time.Since(player.StartTime)
+
+	if player.FirstKeystrokeTime.IsZero() && position > 0 {
+		player.FirstKeystrokeTime = time.Now()
+	}
+
+	startTime := player.StartTime
+	if !player.FirstKeystrokeTime.IsZero() {
+		startTime = player.FirstKeystrokeTime
+	}
+	elapsed := time.Since(startTime)
 	wpm := CalculateWPM(position, elapsed)
 
 	if !player.Finished && position >= len(room.Text) {
@@ -195,9 +205,14 @@ func (rm *RoomManager) CheckGameCompletion(roomID string) (bool, []GameOverResul
 	results := make([]GameOverResult, 0, len(room.Players))
 	playerResults := make([]PlayerResult, 0, len(room.Players))
 	for _, p := range room.Players {
-		elapsed := time.Since(p.StartTime)
+		startTime := p.StartTime
+		if !p.FirstKeystrokeTime.IsZero() {
+			startTime = p.FirstKeystrokeTime
+		}
+
+		elapsed := time.Since(startTime)
 		if p.Finished {
-			elapsed = p.FinishTime.Sub(p.StartTime)
+			elapsed = p.FinishTime.Sub(startTime)
 		}
 		wpm := CalculateWPM(p.Position, elapsed)
 		accuracy := CalculateAccuracy(p.Position, len(room.Text))

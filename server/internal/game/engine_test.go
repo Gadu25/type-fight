@@ -15,6 +15,8 @@ func TestCalculateWPM(t *testing.T) {
 		{"10 correct chars in 1 minute", 10, time.Minute, 2.0},
 		{"50 correct chars in 1 minute", 50, time.Minute, 10.0},
 		{"100 correct chars in 30 seconds", 100, 30 * time.Second, 40.0},
+		{"50 chars finished in 15s with 4s countdown offset", 50, 15 * time.Second, 40.0},
+		{"zero elapsed returns 0", 10, 0, 0},
 	}
 
 	for _, tt := range tests {
