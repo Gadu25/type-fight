@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/type-fight/server/internal/api"
 	"github.com/type-fight/server/internal/game"
@@ -20,6 +21,11 @@ func main() {
 	mux := http.NewServeMux()
 	routes.Setup(mux)
 
-	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server starting on :%s", port)
+	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
