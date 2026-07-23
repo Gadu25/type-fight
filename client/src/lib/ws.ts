@@ -37,7 +37,7 @@ export type ServerMessage = {
     position: number;
   }>;
   error?: { message: string };
-  player_finished?: { name: string };
+  player_finished?: { name: string, id: string };
 };
 
 export type MessageHandler = (message: ServerMessage) => void;
