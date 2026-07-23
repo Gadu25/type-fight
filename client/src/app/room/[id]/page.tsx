@@ -139,9 +139,7 @@ export default function RoomPage() {
         break;
 
       case 'progress':
-        if (message.player_id === playerId) {
-          setCurrentPosition(message.position || 0);
-        } else {
+        if (message.player_id !== playerId) {
           setEnemyPosition(message.position || 0);
           if (!enemyName && message.player_id) {
             const enemy = players.find(p => p.id === message.player_id);

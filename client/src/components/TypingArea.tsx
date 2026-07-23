@@ -17,6 +17,11 @@ export default function TypingArea({
 }: TypingAreaProps) {
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const positionRef = useRef(currentPosition);
+
+  useEffect(() => {
+    positionRef.current = currentPosition;
+  }, [currentPosition]);
 
   useEffect(() => {
     if (isActive && inputRef.current) {
@@ -32,9 +37,11 @@ export default function TypingArea({
     }
 
     if (e.key.length === 1) {
-      const expectedChar = text[currentPosition];
+      const pos = positionRef.current;
+      const expectedChar = text[pos];
       if (e.key === expectedChar) {
-        onKeystroke(e.key, currentPosition + 1);
+        positionRef.current = pos + 1;
+        onKeystroke(e.key, pos + 1);
       }
     }
   };
