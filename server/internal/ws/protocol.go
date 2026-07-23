@@ -21,7 +21,8 @@ type ServerMessage struct {
 	Accuracy     float64          `json:"accuracy,omitempty"`
 	Winner       string           `json:"winner,omitempty"`
 	Results      []ResultInfo     `json:"results,omitempty"`
-	Error        *ErrorMessage    `json:"error,omitempty"`
+	Error          *ErrorMessage    `json:"error,omitempty"`
+	PlayerFinished *PlayerInfo      `json:"player_finished,omitempty"`
 }
 
 type PlayerInfo struct {
