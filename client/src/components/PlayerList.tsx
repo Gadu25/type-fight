@@ -49,7 +49,7 @@ export default function PlayerList({
         <div className="mt-4">
           <button
             onClick={onStartGame}
-            disabled={!isHost || isRoomFull || players.length < 2}
+            disabled={!canStart}
             className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
           >
             Start Game
