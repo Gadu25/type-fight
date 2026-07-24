@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { getAccount, createAccount } from '@/lib/account';
 
 export default function Home() {
@@ -54,7 +55,17 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
       <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-96">
-        <h1 className="text-3xl font-bold mb-6 text-center">Type Fight</h1>
+        <div className="flex flex-col items-center mb-6">
+          <Image
+            src="/images/icon.webp"
+            alt="Type Fight icon"
+            width={64}
+            height={64}
+            className="rounded-lg mb-3"
+            priority
+          />
+          <h1 className="text-3xl font-bold">Type Fight</h1>
+        </div>
         
         <div className="space-y-4">
           <div>
