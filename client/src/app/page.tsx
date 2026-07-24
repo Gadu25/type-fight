@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAccount, createAccount } from '@/lib/account';
 
 export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [joinRoomId, setJoinRoomId] = useState('');
   const router = useRouter();
-  
+
+  useEffect(() => {
+    const account = getAccount();
+    if (account) {
+      setPlayerName(account.name);
+    }
+  }, []);
+
   const handleCreateRoom = async () => {
     if (!playerName.trim()) return;
+    
+    let account = getAccount();
+    if (!account) {
+      account = createAccount(playerName);
+    } else {
+      account.name = playerName;
+      localStorage.setItem('typefight_account', JSON.stringify(account));
+    }
     
     const response = await fetch('/api/rooms', {
       method: 'POST',
@@ -17,7 +33,6 @@ export default function Home() {
     
     const data = await response.json();
     localStorage.setItem('playerId', data.player_id);
-    localStorage.setItem('playerName', playerName);
     
     router.push(`/room/${data.room_id}`);
   };
@@ -25,7 +40,14 @@ export default function Home() {
   const handleJoinRoom = () => {
     if (!playerName.trim() || !joinRoomId.trim()) return;
     
-    localStorage.setItem('playerName', playerName);
+    let account = getAccount();
+    if (!account) {
+      account = createAccount(playerName);
+    } else {
+      account.name = playerName;
+      localStorage.setItem('typefight_account', JSON.stringify(account));
+    }
+    
     router.push(`/room/${joinRoomId}`);
   };
   
