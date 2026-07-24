@@ -8,10 +8,11 @@ import TypingArea from '@/components/TypingArea';
 import Results from '@/components/Results';
 import EnemyPreview from '@/components/EnemyPreview';
 import Toast from '@/components/Toast';
+import Countdown from '@/components/Countdown';
 import { getAccount, createAccount, saveAccount, updateMatchHistory } from '@/lib/account';
 import NamePromptModal from '@/components/NamePromptModal';
 
-type GameState = 'lobby' | 'playing' | 'finished';
+type GameState = 'lobby' | 'countdown' | 'playing' | 'finished';
 
 const GAME_TIME_LIMIT = 30;
 
@@ -73,6 +74,7 @@ export default function RoomPage() {
   const pendingPositionRef = useRef(0);
   const lastSentPositionRef = useRef(0);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const account = getAccount();
@@ -97,6 +99,7 @@ export default function RoomPage() {
       }
     );
     setWs(websocket);
+    wsRef.current = websocket;
 
     return () => {
       if (wsOpenedRef.current) {
@@ -140,40 +143,13 @@ export default function RoomPage() {
         if (message.text && message.players) {
           setText(message.text);
           setPlayers(message.players);
-          setGameState('playing');
+          setGameState('countdown');
           setCurrentPosition(0);
-          setTimeLeft(GAME_TIME_LIMIT);
           setEnemyPosition(0);
           setToastMessage(null);
 
           const enemy = message.players.find(p => p.id !== playerId);
           if (enemy) setEnemyName(enemy.name);
-
-          if (timerRef.current) clearInterval(timerRef.current);
-          timerRef.current = setInterval(() => {
-            setTimeLeft((prev) => {
-              if (prev <= 1) {
-                if (timerRef.current) clearInterval(timerRef.current);
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
-
-          // Sync position every 100ms
-          pendingPositionRef.current = 0;
-          lastSentPositionRef.current = 0;
-          if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-          syncIntervalRef.current = setInterval(() => {
-            if (ws && pendingPositionRef.current !== lastSentPositionRef.current) {
-              sendMessage(ws, {
-                type: 'keystroke',
-                char: '',
-                position: pendingPositionRef.current,
-              });
-              lastSentPositionRef.current = pendingPositionRef.current;
-            }
-          }, 100);
         }
         break;
 
@@ -246,6 +222,35 @@ export default function RoomPage() {
     }
   };
 
+  const handleCountdownComplete = useCallback(() => {
+    setGameState('playing');
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    pendingPositionRef.current = 0;
+    lastSentPositionRef.current = 0;
+    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    syncIntervalRef.current = setInterval(() => {
+      if (wsRef.current && pendingPositionRef.current !== lastSentPositionRef.current) {
+        sendMessage(wsRef.current, {
+          type: 'keystroke',
+          char: '',
+          position: pendingPositionRef.current,
+        });
+        lastSentPositionRef.current = pendingPositionRef.current;
+      }
+    }, 100);
+  }, []);
+
   const timerColor = timeLeft <= 5 ? 'text-red-400' : timeLeft <= 10 ? 'text-yellow-400' : 'text-gray-400';
 
   return (
@@ -308,22 +313,28 @@ export default function RoomPage() {
               </div>
             )}
 
-            {gameState === 'playing' && (
-              <div className="space-y-4">
-                {enemyName && (
-                  <EnemyPreview
+            {(gameState === 'countdown' || gameState === 'playing') && (
+              <div className={gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}>
+                <div className="space-y-4">
+                  {enemyName && (
+                    <EnemyPreview
+                      text={text}
+                      enemyPosition={enemyPosition}
+                      enemyName={enemyName}
+                    />
+                  )}
+                  <TypingArea
                     text={text}
-                    enemyPosition={enemyPosition}
-                    enemyName={enemyName}
+                    onKeystroke={handleKeystroke}
+                    isActive={gameState === 'playing'}
+                    currentPosition={currentPosition}
                   />
-                )}
-                <TypingArea
-                  text={text}
-                  onKeystroke={handleKeystroke}
-                  isActive={true}
-                  currentPosition={currentPosition}
-                />
+                </div>
               </div>
+            )}
+
+            {gameState === 'countdown' && (
+              <Countdown onComplete={handleCountdownComplete} />
             )}
 
             {gameState === 'finished' && results && (
