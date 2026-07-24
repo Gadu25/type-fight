@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { createWebSocket, sendMessage, ServerMessage, ResultInfo } from '@/lib/ws';
 import PlayerList from '@/components/PlayerList';
 import TypingArea from '@/components/TypingArea';
 import Results from '@/components/Results';
 import EnemyPreview from '@/components/EnemyPreview';
 import Toast from '@/components/Toast';
+import { getAccount, createAccount, saveAccount, updateMatchHistory } from '@/lib/account';
+import NamePromptModal from '@/components/NamePromptModal';
 
 type GameState = 'lobby' | 'playing' | 'finished';
 
@@ -15,7 +17,6 @@ const GAME_TIME_LIMIT = 30;
 
 export default function RoomPage() {
   const params = useParams();
-  const router = useRouter();
   const roomId = params.id as string;
 
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -30,7 +31,42 @@ export default function RoomPage() {
   const [timeLeft, setTimeLeft] = useState(GAME_TIME_LIMIT);
   const [enemyPosition, setEnemyPosition] = useState(0);
   const [enemyName, setEnemyName] = useState('');
+  const [isRoomFull, setIsRoomFull] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const handleCopyLink = async () => {
+    try {
+      const url = `${window.location.origin}/room/${roomId}`;
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API failed (non-HTTPS, denied permission, or unsupported browser)
+    }
+  };
+
+  const handleNameSubmitted = (name: string) => {
+    const account = createAccount(name);
+    setPlayerId(account.id);
+    localStorage.setItem('playerId', account.id);
+    setShowNameModal(false);
+
+    wsOpenedRef.current = false;
+    const websocket = createWebSocket(
+      roomId,
+      (msg) => handleMessageRef.current(msg),
+      () => {
+        wsOpenedRef.current = true;
+        sendMessage(websocket, {
+          type: 'join',
+          player_name: account.name,
+        });
+      }
+    );
+    setWs(websocket);
+  };
+
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsOpenedRef = useRef(false);
@@ -39,15 +75,14 @@ export default function RoomPage() {
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const storedPlayerId = localStorage.getItem('playerId');
-    const storedPlayerName = localStorage.getItem('playerName');
+    const account = getAccount();
 
-    if (!storedPlayerName) {
-      router.push('/');
+    if (!account) {
+      setShowNameModal(true);
       return;
     }
 
-    setPlayerId(storedPlayerId);
+    setPlayerId(account.id);
     wsOpenedRef.current = false;
 
     const websocket = createWebSocket(
@@ -57,7 +92,7 @@ export default function RoomPage() {
         wsOpenedRef.current = true;
         sendMessage(websocket, {
           type: 'join',
-          player_name: storedPlayerName,
+          player_name: account.name,
         });
       }
     );
@@ -81,8 +116,12 @@ export default function RoomPage() {
             setHostId(message.players[0].id);
           }
         }
-        if (message.your_player_id && !localStorage.getItem('playerId')) {
-          localStorage.setItem('playerId', message.your_player_id);
+        if (message.your_player_id) {
+          const account = getAccount();
+          if (account && account.id !== message.your_player_id) {
+            account.id = message.your_player_id;
+            saveAccount(account);
+          }
           setPlayerId(message.your_player_id);
         }
         break;
@@ -162,11 +201,30 @@ export default function RoomPage() {
           setWinner(message.winner);
           setGameState('finished');
           setToastMessage(null);
+
+          const account = getAccount();
+          if (account) {
+            const playerResult = message.results.find(r => r.player_id === playerId);
+            const opponent = message.results.find(r => r.player_id !== playerId);
+            if (playerResult && opponent) {
+              updateMatchHistory({
+                opponentName: opponent.name,
+                winner: message.winner === playerId,
+                wpm: playerResult.wpm,
+                accuracy: playerResult.accuracy,
+                timestamp: Date.now(),
+              });
+            }
+          }
         }
         break;
 
       case 'error':
         console.error('Server error:', message.error?.message);
+        if (message.error?.message === 'room is full') {
+          setIsRoomFull(true);
+          setToastMessage('This room is full. Only 2 players are allowed per match.');
+        }
         break;
     }
   }, [playerId, hostId, enemyName, players]);
@@ -215,18 +273,38 @@ export default function RoomPage() {
               currentPlayerId={playerId}
               gameStatus={gameState}
               onStartGame={handleStartGame}
+              isRoomFull={isRoomFull}
             />
           </div>
 
           <div className="lg:col-span-2">
             {gameState === 'lobby' && (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
-                <p className="text-gray-400">
-                  Waiting for game to start...
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Share this room code with a friend: <span className="font-mono text-white">{roomId}</span>
-                </p>
+                {isRoomFull ? (
+                  <>
+                    <p className="text-red-400 font-semibold text-lg">
+                      Room is Full
+                    </p>
+                    <p className="text-gray-400 mt-2">
+                      This match already has 2 players
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-400">
+                      Waiting for game to start...
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Share this room code with a friend: <span className="font-mono text-white">{roomId}</span>
+                    </p>
+                    <button
+                      onClick={handleCopyLink}
+                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+                    >
+                      {copied ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -263,6 +341,9 @@ export default function RoomPage() {
           message={toastMessage}
           onDismiss={() => setToastMessage(null)}
         />
+      )}
+      {showNameModal && (
+        <NamePromptModal onNameSubmitted={handleNameSubmitted} />
       )}
     </main>
   );
