@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
 import { createWebSocket, sendMessage, ServerMessage, ResultInfo } from '@/lib/ws';
 import PlayerList from '@/components/PlayerList';
 import TypingArea from '@/components/TypingArea';
@@ -257,7 +258,16 @@ export default function RoomPage() {
     <main className="min-h-screen bg-gray-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold">Type Fight</h1>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/images/icon.webp"
+              alt="Type Fight"
+              width={28}
+              height={28}
+              className="rounded"
+            />
+            <h1 className="text-2xl font-bold">Type Fight</h1>
+          </div>
           <div className="flex items-center gap-4">
             {gameState === 'playing' && (
               <div className={`text-2xl font-mono font-bold ${timerColor}`}>
