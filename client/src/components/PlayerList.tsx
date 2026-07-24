@@ -8,6 +8,7 @@ interface PlayerListProps {
   currentPlayerId: string | null;
   gameStatus: string;
   onStartGame?: () => void;
+  isRoomFull?: boolean;
 }
 
 export default function PlayerList({
@@ -16,9 +17,10 @@ export default function PlayerList({
   currentPlayerId,
   gameStatus,
   onStartGame,
+  isRoomFull,
 }: PlayerListProps) {
   const isHost = currentPlayerId === hostId;
-  const canStart = isHost && players.length === 2 && gameStatus === 'lobby';
+  const canStart = isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull;
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
@@ -45,20 +47,13 @@ export default function PlayerList({
       
       {gameStatus === 'lobby' && (
         <div className="mt-4">
-          {canStart ? (
-            <button
-              onClick={onStartGame}
-              className="w-full py-2 bg-green-600 hover:bg-green-700 rounded-md font-medium transition-colors"
-            >
-              Start Game
-            </button>
-          ) : (
-            <p className="text-center text-gray-400">
-              {players.length < 2
-                ? 'Waiting for another player...'
-                : 'Only host can start the game'}
-            </p>
-          )}
+          <button
+            onClick={onStartGame}
+            disabled={!isHost || isRoomFull}
+            className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
+          >
+            Start Game
+          </button>
         </div>
       )}
     </div>
