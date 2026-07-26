@@ -23,6 +23,8 @@ type ServerMessage struct {
 	Results      []ResultInfo     `json:"results,omitempty"`
 	Error          *ErrorMessage    `json:"error,omitempty"`
 	PlayerFinished *PlayerInfo      `json:"player_finished,omitempty"`
+	ReadyPlayerID  string           `json:"ready_player_id,omitempty"`
+	OpponentName   string           `json:"opponent_name,omitempty"`
 }
 
 type PlayerInfo struct {
