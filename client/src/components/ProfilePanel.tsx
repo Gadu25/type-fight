@@ -47,6 +47,8 @@ export default function ProfilePanel({ isOpen, onClose }: ProfilePanelProps) {
     }
   }, [isOpen]);
 
+  const stats = account && account.matchHistory.length > 0 ? computeStats(account) : null;
+
   return (
     <>
       {/* Backdrop */}
@@ -103,24 +105,24 @@ export default function ProfilePanel({ isOpen, onClose }: ProfilePanelProps) {
                 </div>
 
                 {/* Stats */}
-                {account.matchHistory.length > 0 && (
+                {stats && (
                   <div className="grid grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
                       <span className="text-xs text-gray-400 block">Winrate</span>
                       <span className="text-xl font-bold">
-                        {computeStats(account).winrate.toFixed(0)}%
+                        {stats.winrate.toFixed(0)}%
                       </span>
                     </div>
                     <div className="text-center">
                       <span className="text-xs text-gray-400 block">Avg WPM</span>
                       <span className="text-xl font-bold">
-                        {computeStats(account).avgWpm.toFixed(1)}
+                        {stats.avgWpm.toFixed(1)}
                       </span>
                     </div>
                     <div className="text-center">
                       <span className="text-xs text-gray-400 block">Games</span>
                       <span className="text-xl font-bold">
-                        {computeStats(account).totalGames}
+                        {stats.totalGames}
                       </span>
                     </div>
                   </div>
