@@ -79,6 +79,7 @@ export default function RoomPage() {
   const lastSentPositionRef = useRef(0);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const gameOverProcessedRef = useRef(false);
 
   useEffect(() => {
     const account = getAccount();
@@ -151,6 +152,7 @@ export default function RoomPage() {
           setCurrentPosition(0);
           setEnemyPosition(0);
           setToastMessage(null);
+          gameOverProcessedRef.current = false;
 
           const enemy = message.players.find(p => p.id !== playerId);
           if (enemy) setEnemyName(enemy.name);
@@ -174,7 +176,8 @@ export default function RoomPage() {
         break;
 
       case 'game_over':
-        if (message.results && message.winner !== undefined) {
+        if (message.results && message.winner !== undefined && !gameOverProcessedRef.current) {
+          gameOverProcessedRef.current = true;
           if (timerRef.current) clearInterval(timerRef.current);
           if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
           setResults(message.results);
