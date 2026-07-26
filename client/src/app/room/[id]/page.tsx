@@ -12,6 +12,8 @@ import Toast from '@/components/Toast';
 import Countdown from '@/components/Countdown';
 import { getAccount, createAccount, saveAccount, updateMatchHistory } from '@/lib/account';
 import NamePromptModal from '@/components/NamePromptModal';
+import ProfileToggle from '@/components/ProfileToggle';
+import ProfilePanel from '@/components/ProfilePanel';
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished';
 
@@ -36,6 +38,7 @@ export default function RoomPage() {
   const [isRoomFull, setIsRoomFull] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [copied, setCopied] = useState(false);
   const handleCopyLink = async () => {
     try {
@@ -269,6 +272,7 @@ export default function RoomPage() {
             <h1 className="text-2xl font-bold">Type Fight</h1>
           </div>
           <div className="flex items-center gap-4">
+            <ProfileToggle onClick={() => setShowProfile(true)} />
             {gameState === 'playing' && (
               <div className={`text-2xl font-mono font-bold ${timerColor}`}>
                 {timeLeft}s
@@ -366,6 +370,7 @@ export default function RoomPage() {
       {showNameModal && (
         <NamePromptModal onNameSubmitted={handleNameSubmitted} />
       )}
+      <ProfilePanel isOpen={showProfile} onClose={() => setShowProfile(false)} />
     </main>
   );
 }
