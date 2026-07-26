@@ -18,6 +18,8 @@ type PlayerState struct {
 	Finished         bool
 	FinishTime       time.Time
 	FirstKeystrokeTime time.Time
+	Ready              bool
+	WantsPlayAgain     bool
 }
 
 type Room struct {
@@ -283,6 +285,95 @@ type RoomInfo struct {
 type PlayerInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+func (rm *RoomManager) SetPlayerReady(roomID, playerID string) (bool, error) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return false, fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	player, exists := room.Players[playerID]
+	if !exists {
+		return false, fmt.Errorf("player not in room")
+	}
+
+	player.Ready = true
+
+	allReady := true
+	for _, p := range room.Players {
+		if !p.Ready {
+			allReady = false
+			break
+		}
+	}
+
+	return allReady, nil
+}
+
+func (rm *RoomManager) SetPlayerWantsPlayAgain(roomID, playerID string) (bool, error) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return false, fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	player, exists := room.Players[playerID]
+	if !exists {
+		return false, fmt.Errorf("player not in room")
+	}
+
+	player.WantsPlayAgain = true
+
+	allWant := true
+	for _, p := range room.Players {
+		if !p.WantsPlayAgain {
+			allWant = false
+			break
+		}
+	}
+
+	return allWant, nil
+}
+
+func (rm *RoomManager) ResetRoom(roomID string) error {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	room.Status = "lobby"
+	room.Text = ""
+	room.GameStart = time.Time{}
+
+	for _, p := range room.Players {
+		p.Position = 0
+		p.Finished = false
+		p.FinishTime = time.Time{}
+		p.FirstKeystrokeTime = time.Time{}
+		p.StartTime = time.Time{}
+		p.Ready = false
+		p.WantsPlayAgain = false
+	}
+
+	return nil
 }
 
 func generateID() string {
