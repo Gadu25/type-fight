@@ -36,8 +36,8 @@ func TestCalculateAccuracy(t *testing.T) {
 		total    int
 		expected float64
 	}{
-		{"100% accuracy", 10, 10, 100.0},
-		{"50% accuracy", 5, 10, 50.0},
+		{"100% accuracy", 10, 10, 1.0},
+		{"50% accuracy", 5, 10, 0.5},
 		{"0% accuracy", 0, 10, 0.0},
 	}
 

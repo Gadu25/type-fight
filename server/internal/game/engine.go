@@ -44,13 +44,13 @@ func CalculateWPM(correctChars int, elapsed time.Duration) float64 {
 	return float64(correctChars) / float64(CharsPerWord) / minutes
 }
 
-// CalculateAccuracy calculates typing accuracy as percentage
-// Formula: correct_keystrokes / total_keystrokes * 100
+// CalculateAccuracy calculates typing accuracy as a ratio (0.0 - 1.0)
+// Formula: correct_keystrokes / total_keystrokes
 func CalculateAccuracy(correct, total int) float64 {
 	if total == 0 {
 		return 0
 	}
-	return float64(correct) / float64(total) * 100.0
+	return float64(correct) / float64(total)
 }
 
 // PlayerResult holds a player's game result for winner determination

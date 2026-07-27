@@ -214,6 +214,7 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 	h.hub.BroadcastToRoom(roomID, data)
 
 	go h.waitForTimeout(roomID)
+	go h.waitForBattleTimeout(roomID)
 }
 
 func (h *Handler) waitForTimeout(roomID string) {
@@ -242,7 +243,35 @@ func (h *Handler) waitForTimeout(roomID string) {
 	}
 
 	gameOverData, _ := json.Marshal(gameOverMsg)
-	h.hub.BroadcastToRoom(roomID, gameOverData)
+	h.	hub.BroadcastToRoom(roomID, gameOverData)
+}
+
+func (h *Handler) waitForBattleTimeout(roomID string) {
+	time.Sleep(game.BattleTimeLimit + 1*time.Second)
+
+	winner, defeated := h.roomManager.HandleBattleTimeout(roomID)
+	if winner == "" || defeated == "" {
+		return
+	}
+
+	defeatedMsg := CombatServerMessage{
+		Type: "player_defeated",
+		PlayerDefeated: &PlayerDefeatedPayload{
+			PlayerID: defeated,
+		},
+	}
+	defData, _ := json.Marshal(defeatedMsg)
+	h.hub.BroadcastToRoom(roomID, defData)
+
+	battleOver := CombatServerMessage{
+		Type: "battle_over",
+		BattleOver: &BattleOverPayload{
+			Winner: winner,
+			Reason: "timeout",
+		},
+	}
+	boData, _ := json.Marshal(battleOver)
+	h.hub.BroadcastToRoom(roomID, boData)
 }
 
 func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg ClientMessage) {

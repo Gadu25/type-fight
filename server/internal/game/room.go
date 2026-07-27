@@ -461,7 +461,7 @@ func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*Att
 			return nil, fmt.Errorf("no active attack")
 		}
 		def := GetAttackDef(attacker.CurrentAttack)
-		accuracy := CalculateAccuracy(correct, total) / 100.0
+		accuracy := CalculateAccuracy(correct, total)
 		damage := CalculateDamage(def.Damage, accuracy)
 		var result *AttackResult
 		for id, p := range room.Players {
@@ -556,6 +556,42 @@ func (rm *RoomManager) CheckBattleEnd() (winner string, defeated string) {
 		room.mu.RUnlock()
 	}
 	return "", ""
+}
+
+func (rm *RoomManager) HandleBattleTimeout(roomID string) (winner, defeated string) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return "", ""
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if room.Status != "playing" {
+		return "", ""
+	}
+
+	var highestHP int
+	var winnerID string
+	var defeatedID string
+	for id, p := range room.Players {
+		if p.HP > highestHP {
+			highestHP = p.HP
+			winnerID = id
+		}
+	}
+	for id := range room.Players {
+		if id != winnerID {
+			defeatedID = id
+			break
+		}
+	}
+
+	room.Status = "finished"
+	return winnerID, defeatedID
 }
 
 func generateID() string {
