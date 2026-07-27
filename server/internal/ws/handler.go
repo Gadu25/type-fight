@@ -350,38 +350,19 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 		return
 	}
 
-	room := h.roomManager.GetRoom(roomID)
-	if room == nil {
-		h.sendError(conn, "Room not found")
-		return
-	}
-
-	var opponentID string
-	var oldHPOpponent int
-	for id, p := range room.Players {
-		if id != playerID {
-			opponentID = id
-			oldHPOpponent = p.HP
-		}
-	}
-
-	err := h.roomManager.CompleteAttack(playerID, msg.AttackComplete.Correct, msg.AttackComplete.Total)
+	attackResult, err := h.roomManager.CompleteAttack(playerID, msg.AttackComplete.Correct, msg.AttackComplete.Total)
 	if err != nil {
 		h.sendError(conn, err.Error())
 		return
 	}
 
-	room = h.roomManager.GetRoom(roomID)
-	newHPOpponent := room.Players[opponentID].HP
-	actualDamage := oldHPOpponent - newHPOpponent
-
 	hpUpdate := CombatServerMessage{
 		Type: "hp_update",
 		HpUpdate: &HpUpdatePayload{
-			PlayerID: opponentID,
-			HP:       newHPOpponent,
+			PlayerID: attackResult.OpponentID,
+			HP:       attackResult.NewHP,
 			Attacker: playerID,
-			Damage:   actualDamage,
+			Damage:   attackResult.Damage,
 		},
 	}
 	hpData, _ := json.Marshal(hpUpdate)
@@ -408,7 +389,7 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 		boData, _ := json.Marshal(battleOver)
 		h.hub.BroadcastToRoom(roomID, boData)
 
-		room.Status = "finished"
+		h.roomManager.SetRoomStatus(roomID, "finished")
 	}
 }
 

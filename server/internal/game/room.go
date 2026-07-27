@@ -399,6 +399,21 @@ func (rm *RoomManager) ResetRoom(roomID string) error {
 	return nil
 }
 
+func (rm *RoomManager) SetRoomStatus(roomID, status string) error {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+	room.Status = status
+	return nil
+}
+
 func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 	def := GetAttackDef(tier)
 	if def.Damage == 0 {
@@ -424,7 +439,14 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 	return fmt.Errorf("player not found")
 }
 
-func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) error {
+type AttackResult struct {
+	OpponentID string
+	OldHP      int
+	NewHP      int
+	Damage     int
+}
+
+func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*AttackResult, error) {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
@@ -436,17 +458,25 @@ func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) error
 		}
 		if attacker.CurrentAttack == "" {
 			room.mu.Unlock()
-			return fmt.Errorf("no active attack")
+			return nil, fmt.Errorf("no active attack")
 		}
 		def := GetAttackDef(attacker.CurrentAttack)
 		accuracy := CalculateAccuracy(correct, total) / 100.0
 		damage := CalculateDamage(def.Damage, accuracy)
+		var result *AttackResult
 		for id, p := range room.Players {
 			if id != playerID && p.IsAlive {
+				oldHP := p.HP
 				p.HP -= damage
 				if p.HP <= 0 {
 					p.HP = 0
 					p.IsAlive = false
+				}
+				result = &AttackResult{
+					OpponentID: id,
+					OldHP:      oldHP,
+					NewHP:      p.HP,
+					Damage:     oldHP - p.HP,
 				}
 			}
 		}
@@ -455,9 +485,12 @@ func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) error
 		attacker.PhraseCorrect = 0
 		attacker.PhraseTotal = 0
 		room.mu.Unlock()
-		return nil
+		if result == nil {
+			return nil, fmt.Errorf("no valid opponent found")
+		}
+		return result, nil
 	}
-	return fmt.Errorf("player not found")
+	return nil, fmt.Errorf("player not found")
 }
 
 func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
