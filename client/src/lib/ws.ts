@@ -8,10 +8,11 @@ export interface PlayerInfo {
 }
 
 export interface ResultInfo {
-  winner: string
-  loser: string
-  winnerWPM: number
-  loserWPM: number
+  player_id: string
+  name: string
+  wpm: number
+  accuracy: number
+  position: number
 }
 
 export type ClientMessage =
@@ -26,13 +27,13 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'player_list'; players: PlayerInfo[] }
   | { type: 'player_joined'; player: PlayerInfo }
-  | { type: 'game_start'; game_start: { players: { id: string; name: string; hp: number }[] } }
+  | { type: 'game_start'; players: { id: string; name: string }[]; text: string }
   | { type: 'progress'; player_id: string; position: number; wpm: number }
   | { type: 'player_finished'; player_finished: PlayerInfo }
-  | { type: 'player_ready'; ready_player_id: string; opponent_name: string }
-  | { type: 'play_again_request' }
+  | { type: 'player_ready'; ready_player_id: string }
+  | { type: 'play_again_request'; opponent_name: string }
   | { type: 'return_to_lobby'; return_to_lobby: boolean }
-  | { type: 'game_over'; results: ResultInfo[] }
+  | { type: 'game_over'; results: ResultInfo[]; winner: string }
   | { type: 'error'; error: { message: string } }
   | { type: 'attack_phrase'; attack_phrase: { phrase: string; tier: string; damage: number } }
   | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }

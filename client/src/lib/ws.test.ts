@@ -68,4 +68,44 @@ describe('ServerMessage types', () => {
     }
     expect(msg.type).toBe('battle_over')
   })
+
+  it('should have game_start type with flat players', () => {
+    const msg: ServerMessage = {
+      type: 'game_start',
+      players: [{ id: 'p1', name: 'Alice' }, { id: 'p2', name: 'Bob' }],
+      text: 'The quick brown fox'
+    }
+    expect(msg.type).toBe('game_start')
+    expect(msg.players).toHaveLength(2)
+  })
+
+  it('should have player_ready type with ready_player_id', () => {
+    const msg: ServerMessage = {
+      type: 'player_ready',
+      ready_player_id: 'player1'
+    }
+    expect(msg.type).toBe('player_ready')
+  })
+
+  it('should have play_again_request type with opponent_name', () => {
+    const msg: ServerMessage = {
+      type: 'play_again_request',
+      opponent_name: 'Bob'
+    }
+    expect(msg.type).toBe('play_again_request')
+  })
+
+  it('should have game_over type with per-player results', () => {
+    const msg: ServerMessage = {
+      type: 'game_over',
+      results: [
+        { player_id: 'p1', name: 'Alice', wpm: 80, accuracy: 0.95, position: 1 },
+        { player_id: 'p2', name: 'Bob', wpm: 60, accuracy: 0.80, position: 2 }
+      ],
+      winner: 'p1'
+    }
+    expect(msg.type).toBe('game_over')
+    expect(msg.results).toHaveLength(2)
+    expect(msg.winner).toBe('p1')
+  })
 })
