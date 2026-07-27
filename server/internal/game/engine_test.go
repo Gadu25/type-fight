@@ -120,4 +120,59 @@ func TestCheckTimeout(t *testing.T) {
 	}
 }
 
+func TestCalculateDamage_FullAccuracy(t *testing.T) {
+	result := CalculateDamage(100, 1.0)
+	if result != 100 {
+		t.Errorf("Expected 100, got %d", result)
+	}
+}
+
+func TestCalculateDamage_HalfAccuracy(t *testing.T) {
+	result := CalculateDamage(100, 0.5)
+	if result != 50 {
+		t.Errorf("Expected 50, got %d", result)
+	}
+}
+
+func TestCalculateDamage_LowAccuracy(t *testing.T) {
+	result := CalculateDamage(200, 0.25)
+	if result != 50 {
+		t.Errorf("Expected 50, got %d", result)
+	}
+}
+
+func TestGetAttackDef_Quick(t *testing.T) {
+	def := GetAttackDef("quick")
+	if def.Damage != 80 {
+		t.Errorf("Expected damage 80, got %d", def.Damage)
+	}
+}
+
+func TestGetAttackDef_Normal(t *testing.T) {
+	def := GetAttackDef("normal")
+	if def.Damage != 180 {
+		t.Errorf("Expected damage 180, got %d", def.Damage)
+	}
+}
+
+func TestGetAttackDef_Heavy(t *testing.T) {
+	def := GetAttackDef("heavy")
+	if def.Damage != 350 {
+		t.Errorf("Expected damage 350, got %d", def.Damage)
+	}
+}
+
+func TestGetAttackDef_Ultimate(t *testing.T) {
+	def := GetAttackDef("ultimate")
+	if def.Damage != 600 {
+		t.Errorf("Expected damage 600, got %d", def.Damage)
+	}
+}
+
+func TestGetAttackDef_Invalid(t *testing.T) {
+	def := GetAttackDef("invalid")
+	if def.Damage != 0 {
+		t.Errorf("Expected damage 0 for invalid tier, got %d", def.Damage)
+	}
+}
 

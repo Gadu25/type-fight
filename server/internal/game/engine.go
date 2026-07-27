@@ -3,9 +3,36 @@ package game
 import "time"
 
 const (
-	GameTimeLimit = 30 * time.Second
-	CharsPerWord  = 5
+	GameTimeLimit   = 30 * time.Second
+	BattleTimeLimit = 120 * time.Second
+	CharsPerWord    = 5
+	BasePlayerHP    = 1000
 )
+
+type AttackDef struct {
+	Damage   int
+	MinWords int
+	MaxWords int
+}
+
+var attackDefs = map[string]AttackDef{
+	"quick":    {Damage: 80, MinWords: 4, MaxWords: 8},
+	"normal":   {Damage: 180, MinWords: 8, MaxWords: 15},
+	"heavy":    {Damage: 350, MinWords: 15, MaxWords: 25},
+	"ultimate": {Damage: 600, MinWords: 25, MaxWords: 40},
+}
+
+func CalculateDamage(baseDamage int, accuracy float64) int {
+	return int(float64(baseDamage) * accuracy)
+}
+
+func GetAttackDef(tier string) AttackDef {
+	def, exists := attackDefs[tier]
+	if !exists {
+		return AttackDef{}
+	}
+	return def
+}
 
 // CalculateWPM calculates words per minute
 // Formula: correct_characters / 5 / (elapsed_time_minutes)
