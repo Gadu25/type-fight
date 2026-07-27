@@ -1,78 +1,82 @@
-export type PlayerInfo = {
-  id: string;
-  name: string;
-};
-
-export type ResultInfo = {
-  player_id: string;
-  name: string;
-  wpm: number;
-  accuracy: number;
-  position: number;
-};
-
-export type ClientMessage = {
-  type: 'join' | 'ready' | 'start_game' | 'keystroke' | 'play_again';
-  player_name?: string;
-  char?: string;
-  position?: number;
-};
-
-export type ServerMessage = {
-  type: string;
-  player?: { id: string; name: string };
-  text?: string;
-  players?: Array<{ id: string; name: string }>;
-  player_id?: string;
-  your_player_id?: string;
-  position?: number;
-  wpm?: number;
-  accuracy?: number;
-  winner?: string;
-  results?: Array<{
-    player_id: string;
-    name: string;
-    wpm: number;
-    accuracy: number;
-    position: number;
-  }>;
-  error?: { message: string };
-  player_finished?: { name: string, id: string };
-  ready_player_id?: string;
-  opponent_name?: string;
-  return_to_lobby?: boolean;
-};
-
-export type MessageHandler = (message: ServerMessage) => void;
-
-export function createWebSocket(
-  roomId: string,
-  onMessage: MessageHandler,
-  onOpen?: () => void
-): WebSocket {
-  const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:8080';
-  const wsUrl = serverUrl.replace(/^http/, 'ws');
-  const playerId = localStorage.getItem('playerId') || '';
-  const ws = new WebSocket(`${wsUrl}/ws/room/${roomId}?player_id=${playerId}`);
-  
-  ws.onopen = () => {
-    onOpen?.();
-  };
-  
-  ws.onmessage = (event) => {
-    const message: ServerMessage = JSON.parse(event.data);
-    onMessage(message);
-  };
-  
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
-  
-  return ws;
+export interface PlayerInfo {
+  id: string
+  name: string
+  ready: boolean
+  isHost: boolean
+  hp?: number
+  isAlive?: boolean
 }
 
-export function sendMessage(ws: WebSocket, message: ClientMessage): void {
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
+export interface ResultInfo {
+  winner: string
+  loser: string
+  winnerWPM: number
+  loserWPM: number
+}
+
+export type ClientMessage =
+  | { type: 'join'; payload: { name: string } }
+  | { type: 'ready'; payload?: unknown }
+  | { type: 'start_game'; payload?: unknown }
+  | { type: 'select_attack'; payload: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
+  | { type: 'attack_complete'; payload: { correct: number; total: number } }
+  | { type: 'switch_attack'; payload: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
+  | { type: 'play_again'; payload?: unknown }
+
+export type ServerMessage =
+  | { type: 'player_list'; payload: { players: PlayerInfo[] } }
+  | { type: 'player_joined'; payload: PlayerInfo }
+  | { type: 'game_start'; payload: { players: { id: string; name: string; hp: number }[] } }
+  | { type: 'progress'; payload: { playerID: string; position: number; wpm: number } }
+  | { type: 'player_finished'; payload: { playerID: string } }
+  | { type: 'player_ready'; payload?: unknown }
+  | { type: 'play_again_request'; payload?: unknown }
+  | { type: 'return_to_lobby'; payload?: unknown }
+  | { type: 'game_over'; payload: ResultInfo }
+  | { type: 'error'; payload: { message: string } }
+  | { type: 'attack_phrase'; payload: { phrase: string; tier: string; damage: number } }
+  | { type: 'hp_update'; payload: { playerID: string; hp: number; attacker: string; damage: number } }
+  | { type: 'player_defeated'; payload: { playerID: string } }
+  | { type: 'battle_over'; payload: { winner: string; reason: string } }
+
+export type MessageHandler = (message: ServerMessage) => void
+
+export function createWebSocket(
+  roomID: string,
+  onMessage: MessageHandler,
+  onOpen?: () => void,
+  onClose?: () => void,
+  onError?: (error: Event) => void
+): WebSocket {
+  const wsUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'ws://localhost:8080'
+  const ws = new WebSocket(`${wsUrl}/ws/room/${roomID}`)
+
+  ws.onopen = () => {
+    if (onOpen) onOpen()
+  }
+
+  ws.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data) as ServerMessage
+      onMessage(message)
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error)
+    }
+  }
+
+  ws.onclose = () => {
+    if (onClose) onClose()
+  }
+
+  ws.onerror = (error) => {
+    if (onError) onError(error)
+  }
+
+  return ws
+}
+
+export function sendMessage(ws: WebSocket | null, message: ClientMessage): void {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message))
   }
 }
