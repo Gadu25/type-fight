@@ -404,6 +404,8 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 	if def.Damage == 0 {
 		return fmt.Errorf("invalid attack tier: %s", tier)
 	}
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
 		room.mu.Lock()
 		player, exists := room.Players[playerID]
@@ -423,6 +425,8 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 }
 
 func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) error {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
 		room.mu.Lock()
 		attacker, exists := room.Players[playerID]
@@ -461,6 +465,8 @@ func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 	if def.Damage == 0 {
 		return fmt.Errorf("invalid attack tier: %s", newTier)
 	}
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
 		room.mu.Lock()
 		player, exists := room.Players[playerID]
@@ -480,6 +486,8 @@ func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 }
 
 func (rm *RoomManager) CheckBattleEnd() (winner string, defeated string) {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
 		room.mu.RLock()
 		if room.Status != "playing" {
