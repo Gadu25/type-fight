@@ -240,6 +240,225 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 	}
 }
 
+func TestHandleSelectAttack_SendsPhrase(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{
+		Conn:     conn,
+		RoomID:   room.ID,
+		PlayerID: "player1",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	msg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{
+			Tier: "quick",
+		},
+	}
+	data, _ := json.Marshal(msg)
+	handler.handleSelectAttack(conn, room.ID, "player1", data)
+
+	time.Sleep(10 * time.Millisecond)
+
+	if len(conn.messages) == 0 {
+		t.Fatal("expected at least one message to be sent")
+	}
+
+	var resp CombatServerMessage
+	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if resp.Type != "attack_phrase" {
+		t.Errorf("expected type 'attack_phrase', got '%s'", resp.Type)
+	}
+	if resp.AttackPhrase == nil {
+		t.Fatal("expected attack_phrase payload")
+	}
+	if resp.AttackPhrase.Tier != "quick" {
+		t.Errorf("expected tier 'quick', got '%s'", resp.AttackPhrase.Tier)
+	}
+	if resp.AttackPhrase.Phrase == "" {
+		t.Error("expected a non-empty phrase")
+	}
+}
+
+func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{
+		Conn:     conn,
+		RoomID:   room.ID,
+		PlayerID: "player1",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	// Select an attack first
+	selectMsg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{
+			Tier: "quick",
+		},
+	}
+	selectData, _ := json.Marshal(selectMsg)
+	handler.handleSelectAttack(conn, room.ID, "player1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Complete the attack
+	completeMsg := CombatClientMessage{
+		Type: "attack_complete",
+		AttackComplete: &AttackCompletePayload{
+			Correct: 100,
+			Total:   100,
+		},
+	}
+	completeData, _ := json.Marshal(completeMsg)
+	handler.handleAttackComplete(conn, room.ID, "player1", completeData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Should have messages: attack_phrase + hp_update
+	foundHPUpdate := false
+	for _, msgBytes := range conn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "hp_update" {
+			foundHPUpdate = true
+			if resp.HpUpdate == nil {
+				t.Fatal("expected hp_update payload")
+			}
+			if resp.HpUpdate.PlayerID != "host1" {
+				t.Errorf("expected hp update for 'host1', got '%s'", resp.HpUpdate.PlayerID)
+			}
+			if resp.HpUpdate.Attacker != "player1" {
+				t.Errorf("expected attacker 'player1', got '%s'", resp.HpUpdate.Attacker)
+			}
+			if resp.HpUpdate.Damage <= 0 {
+				t.Errorf("expected positive damage, got %d", resp.HpUpdate.Damage)
+			}
+		}
+	}
+	if !foundHPUpdate {
+		t.Error("expected hp_update message to be sent")
+	}
+}
+
+func TestHandleSwitchAttack_DiscardsProgress(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{
+		Conn:     conn,
+		RoomID:   room.ID,
+		PlayerID: "player1",
+	})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	// Select an attack first
+	selectMsg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{
+			Tier: "quick",
+		},
+	}
+	selectData, _ := json.Marshal(selectMsg)
+	handler.handleSelectAttack(conn, room.ID, "player1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Switch to a different attack
+	switchMsg := CombatClientMessage{
+		Type: "switch_attack",
+		SwitchAttack: &SwitchAttackPayload{
+			Tier: "heavy",
+		},
+	}
+	switchData, _ := json.Marshal(switchMsg)
+	handler.handleSwitchAttack(conn, room.ID, "player1", switchData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Should have messages: attack_phrase (from select) + attack_phrase (from switch)
+	if len(conn.messages) < 2 {
+		t.Fatalf("expected at least 2 messages, got %d", len(conn.messages))
+	}
+
+	var lastResp CombatServerMessage
+	if err := json.Unmarshal(conn.messages[len(conn.messages)-1], &lastResp); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if lastResp.Type != "attack_phrase" {
+		t.Errorf("expected type 'attack_phrase', got '%s'", lastResp.Type)
+	}
+	if lastResp.AttackPhrase == nil {
+		t.Fatal("expected attack_phrase payload")
+	}
+	if lastResp.AttackPhrase.Tier != "heavy" {
+		t.Errorf("expected tier 'heavy', got '%s'", lastResp.AttackPhrase.Tier)
+	}
+	if lastResp.AttackPhrase.Phrase == "" {
+		t.Error("expected a non-empty phrase")
+	}
+}
+
 func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 	conn := &TestConnection{}
 	hub := NewHub()
