@@ -1,6 +1,7 @@
 package ws
 
 // Client -> Server messages
+// Supported types: "join", "ready", "start_game", "keystroke", "play_again"
 type ClientMessage struct {
 	Type       string `json:"type"`
 	PlayerName string `json:"player_name,omitempty"`
@@ -23,6 +24,9 @@ type ServerMessage struct {
 	Results      []ResultInfo     `json:"results,omitempty"`
 	Error          *ErrorMessage    `json:"error,omitempty"`
 	PlayerFinished *PlayerInfo      `json:"player_finished,omitempty"`
+	ReadyPlayerID  string           `json:"ready_player_id,omitempty"`
+	OpponentName   string           `json:"opponent_name,omitempty"`
+	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
 }
 
 type PlayerInfo struct {

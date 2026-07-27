@@ -36,6 +36,8 @@ func (h *Handler) HandleMessage(conn Connection, roomID, playerID string, data [
 		h.handleStartGame(conn, roomID, playerID)
 	case "keystroke":
 		h.handleKeystroke(conn, roomID, playerID, msg)
+	case "play_again":
+		h.handlePlayAgain(conn, roomID, playerID)
 	}
 }
 
@@ -86,8 +88,97 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 }
 
 func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
-	// Intentional no-op for MVP. Ready state is not tracked yet;
-	// the host can start the game once both players have joined.
+	allReady, err := h.roomManager.SetPlayerReady(roomID, playerID)
+	if err != nil {
+		h.sendError(conn, err.Error())
+		return
+	}
+
+	readyMsg := ServerMessage{
+		Type:          "player_ready",
+		ReadyPlayerID: playerID,
+	}
+	readyData, _ := json.Marshal(readyMsg)
+	h.hub.BroadcastToRoom(roomID, readyData)
+
+	if allReady {
+		room := h.roomManager.GetRoom(roomID)
+		if room == nil {
+			return
+		}
+
+		if room.Status == "lobby" || room.Status == "waiting" {
+			err := h.roomManager.StartGame(roomID, playerID)
+			if err != nil {
+				h.sendError(conn, err.Error())
+				return
+			}
+
+			room = h.roomManager.GetRoom(roomID)
+
+			players := make([]PlayerInfo, 0)
+			for _, p := range room.Players {
+				players = append(players, PlayerInfo{
+					ID:   p.ID,
+					Name: p.Name,
+				})
+			}
+
+			response := ServerMessage{
+				Type:    "game_start",
+				Text:    room.Text,
+				Players: players,
+			}
+
+			startData, _ := json.Marshal(response)
+			h.hub.BroadcastToRoom(roomID, startData)
+
+			go h.waitForTimeout(roomID)
+		}
+	}
+}
+
+func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
+	allWant, err := h.roomManager.SetPlayerWantsPlayAgain(roomID, playerID)
+	if err != nil {
+		h.sendError(conn, err.Error())
+		return
+	}
+
+	room := h.roomManager.GetRoom(roomID)
+	if room == nil {
+		return
+	}
+
+	var opponentName string
+	for _, p := range room.Players {
+		if p.ID != playerID {
+			opponentName = p.Name
+			break
+		}
+	}
+
+	playAgainMsg := ServerMessage{
+		Type:          "play_again_request",
+		OpponentName:  opponentName,
+	}
+	playAgainData, _ := json.Marshal(playAgainMsg)
+	h.hub.BroadcastToRoomExcept(roomID, playerID, playAgainData)
+
+	if allWant {
+		err := h.roomManager.ResetRoom(roomID)
+		if err != nil {
+			h.sendError(conn, err.Error())
+			return
+		}
+
+		lobbyMsg := ServerMessage{
+			Type:          "return_to_lobby",
+			ReturnToLobby: true,
+		}
+		lobbyData, _ := json.Marshal(lobbyMsg)
+		h.hub.BroadcastToRoom(roomID, lobbyData)
+	}
 }
 
 func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {

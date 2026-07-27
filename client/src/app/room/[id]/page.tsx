@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createWebSocket, sendMessage, ServerMessage, ResultInfo } from '@/lib/ws';
 import PlayerList from '@/components/PlayerList';
@@ -12,6 +12,8 @@ import Toast from '@/components/Toast';
 import Countdown from '@/components/Countdown';
 import { getAccount, createAccount, saveAccount, updateMatchHistory } from '@/lib/account';
 import NamePromptModal from '@/components/NamePromptModal';
+import ProfileToggle from '@/components/ProfileToggle';
+import ProfilePanel from '@/components/ProfilePanel';
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished';
 
@@ -19,6 +21,7 @@ const GAME_TIME_LIMIT = 30;
 
 export default function RoomPage() {
   const params = useParams();
+  const router = useRouter();
   const roomId = params.id as string;
 
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -36,7 +39,11 @@ export default function RoomPage() {
   const [isRoomFull, setIsRoomFull] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [opponentReady, setOpponentReady] = useState(false);
+  const [playAgainRequested, setPlayAgainRequested] = useState(false);
   const handleCopyLink = async () => {
     try {
       const url = `${window.location.origin}/room/${roomId}`;
@@ -76,6 +83,7 @@ export default function RoomPage() {
   const lastSentPositionRef = useRef(0);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const gameOverProcessedRef = useRef(false);
 
   useEffect(() => {
     const account = getAccount();
@@ -148,6 +156,10 @@ export default function RoomPage() {
           setCurrentPosition(0);
           setEnemyPosition(0);
           setToastMessage(null);
+          setIsReady(false);
+          setOpponentReady(false);
+          setPlayAgainRequested(false);
+          gameOverProcessedRef.current = false;
 
           const enemy = message.players.find(p => p.id !== playerId);
           if (enemy) setEnemyName(enemy.name);
@@ -170,8 +182,40 @@ export default function RoomPage() {
         }
         break;
 
+      case 'player_ready':
+        if (message.ready_player_id) {
+          if (message.ready_player_id === playerId) {
+            setIsReady(true);
+          } else {
+            setOpponentReady(true);
+            setToastMessage('Your opponent is ready!');
+          }
+        }
+        break;
+
+      case 'play_again_request':
+        setPlayAgainRequested(true);
+        setToastMessage('Your opponent wants to play again!');
+        break;
+
+      case 'return_to_lobby':
+        setGameState('lobby');
+        setIsReady(false);
+        setOpponentReady(false);
+        setPlayAgainRequested(false);
+        setResults(null);
+        setWinner(null);
+        setText('');
+        setCurrentPosition(0);
+        setEnemyPosition(0);
+        setEnemyName('');
+        setTimeLeft(GAME_TIME_LIMIT);
+        setToastMessage(null);
+        break;
+
       case 'game_over':
-        if (message.results && message.winner !== undefined) {
+        if (message.results && message.winner !== undefined && !gameOverProcessedRef.current) {
+          gameOverProcessedRef.current = true;
           if (timerRef.current) clearInterval(timerRef.current);
           if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
           setResults(message.results);
@@ -218,9 +262,29 @@ export default function RoomPage() {
   const handleStartGame = () => {
     if (ws) {
       sendMessage(ws, {
-        type: 'start_game',
+        type: 'ready',
       });
     }
+  };
+
+  const handleReady = () => {
+    if (ws) {
+      sendMessage(ws, {
+        type: 'ready',
+      });
+    }
+  };
+
+  const handlePlayAgain = () => {
+    if (ws) {
+      sendMessage(ws, {
+        type: 'play_again',
+      });
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    router.push('/');
   };
 
   const handleCountdownComplete = useCallback(() => {
@@ -269,6 +333,7 @@ export default function RoomPage() {
             <h1 className="text-2xl font-bold">Type Fight</h1>
           </div>
           <div className="flex items-center gap-4">
+            <ProfileToggle onClick={() => setShowProfile(true)} />
             {gameState === 'playing' && (
               <div className={`text-2xl font-mono font-bold ${timerColor}`}>
                 {timeLeft}s
@@ -288,7 +353,10 @@ export default function RoomPage() {
               currentPlayerId={playerId}
               gameStatus={gameState}
               onStartGame={handleStartGame}
+              onReady={handleReady}
               isRoomFull={isRoomFull}
+              isReady={isReady}
+              opponentReady={opponentReady}
             />
           </div>
 
@@ -314,12 +382,18 @@ export default function RoomPage() {
                     </p>
                     <button
                       onClick={handleCopyLink}
-                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
+                      className="mt-4 me-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium transition-colors"
                     >
                       {copied ? 'Copied!' : 'Copy Link'}
                     </button>
                   </>
                 )}
+                <button
+                  onClick={handleLeaveRoom}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md text-sm font-medium transition-colors"
+                >
+                  Leave Room
+                </button>
               </div>
             )}
 
@@ -352,6 +426,8 @@ export default function RoomPage() {
                 results={results}
                 winner={winner}
                 currentPlayerId={playerId}
+                onPlayAgain={handlePlayAgain}
+                playAgainRequested={playAgainRequested}
               />
             )}
           </div>
@@ -366,6 +442,7 @@ export default function RoomPage() {
       {showNameModal && (
         <NamePromptModal onNameSubmitted={handleNameSubmitted} />
       )}
+      <ProfilePanel isOpen={showProfile} onClose={() => setShowProfile(false)} />
     </main>
   );
 }
