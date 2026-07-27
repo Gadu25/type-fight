@@ -15,29 +15,29 @@ export interface ResultInfo {
 }
 
 export type ClientMessage =
-  | { type: 'join'; payload: { name: string } }
-  | { type: 'ready'; payload?: unknown }
-  | { type: 'start_game'; payload?: unknown }
-  | { type: 'select_attack'; payload: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
-  | { type: 'attack_complete'; payload: { correct: number; total: number } }
-  | { type: 'switch_attack'; payload: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
-  | { type: 'play_again'; payload?: unknown }
+  | { type: 'join'; player_name: string }
+  | { type: 'ready' }
+  | { type: 'start_game' }
+  | { type: 'select_attack'; select_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
+  | { type: 'attack_complete'; attack_complete: { correct: number; total: number } }
+  | { type: 'switch_attack'; switch_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
+  | { type: 'play_again' }
 
 export type ServerMessage =
-  | { type: 'player_list'; payload: { players: PlayerInfo[] } }
-  | { type: 'player_joined'; payload: PlayerInfo }
-  | { type: 'game_start'; payload: { players: { id: string; name: string; hp: number }[] } }
-  | { type: 'progress'; payload: { playerID: string; position: number; wpm: number } }
-  | { type: 'player_finished'; payload: { playerID: string } }
-  | { type: 'player_ready'; payload?: unknown }
-  | { type: 'play_again_request'; payload?: unknown }
-  | { type: 'return_to_lobby'; payload?: unknown }
-  | { type: 'game_over'; payload: ResultInfo }
-  | { type: 'error'; payload: { message: string } }
-  | { type: 'attack_phrase'; payload: { phrase: string; tier: string; damage: number } }
-  | { type: 'hp_update'; payload: { playerID: string; hp: number; attacker: string; damage: number } }
-  | { type: 'player_defeated'; payload: { playerID: string } }
-  | { type: 'battle_over'; payload: { winner: string; reason: string } }
+  | { type: 'player_list'; players: PlayerInfo[] }
+  | { type: 'player_joined'; player: PlayerInfo }
+  | { type: 'game_start'; game_start: { players: { id: string; name: string; hp: number }[] } }
+  | { type: 'progress'; player_id: string; position: number; wpm: number }
+  | { type: 'player_finished'; player_finished: PlayerInfo }
+  | { type: 'player_ready'; ready_player_id: string; opponent_name: string }
+  | { type: 'play_again_request' }
+  | { type: 'return_to_lobby'; return_to_lobby: boolean }
+  | { type: 'game_over'; results: ResultInfo[] }
+  | { type: 'error'; error: { message: string } }
+  | { type: 'attack_phrase'; attack_phrase: { phrase: string; tier: string; damage: number } }
+  | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }
+  | { type: 'player_defeated'; player_defeated: { playerID: string } }
+  | { type: 'battle_over'; battle_over: { winner: string; reason: string } }
 
 export type MessageHandler = (message: ServerMessage) => void
 
