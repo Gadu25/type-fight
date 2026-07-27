@@ -253,7 +253,7 @@ export default function RoomPage() {
 
   const handleStartGame = useCallback(() => {
     if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'ready' })
+      sendMessage(wsRef.current, { type: 'start_game' })
     }
   }, [])
 
