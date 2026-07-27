@@ -12,7 +12,7 @@ export type ResultInfo = {
 };
 
 export type ClientMessage = {
-  type: 'join' | 'ready' | 'start_game' | 'keystroke';
+  type: 'join' | 'ready' | 'start_game' | 'keystroke' | 'play_again';
   player_name?: string;
   char?: string;
   position?: number;
@@ -38,6 +38,9 @@ export type ServerMessage = {
   }>;
   error?: { message: string };
   player_finished?: { name: string, id: string };
+  ready_player_id?: string;
+  opponent_name?: string;
+  return_to_lobby?: boolean;
 };
 
 export type MessageHandler = (message: ServerMessage) => void;

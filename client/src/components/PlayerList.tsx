@@ -8,7 +8,10 @@ interface PlayerListProps {
   currentPlayerId: string | null;
   gameStatus: string;
   onStartGame?: () => void;
+  onReady?: () => void;
   isRoomFull?: boolean;
+  isReady?: boolean;
+  opponentReady?: boolean;
 }
 
 export default function PlayerList({
@@ -17,10 +20,14 @@ export default function PlayerList({
   currentPlayerId,
   gameStatus,
   onStartGame,
+  onReady,
   isRoomFull,
+  isReady,
+  opponentReady,
 }: PlayerListProps) {
   const isHost = currentPlayerId === hostId;
-  const canStart = isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull;
+  const canStart = isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull && opponentReady;
+  const canReady = !isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull;
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
@@ -40,6 +47,12 @@ export default function PlayerList({
               {player.id === currentPlayerId && (
                 <span className="px-2 py-1 text-xs bg-blue-600 rounded">You</span>
               )}
+              {player.id === currentPlayerId && isReady && (
+                <span className="px-2 py-1 text-xs bg-green-600 rounded">Ready</span>
+              )}
+              {player.id !== currentPlayerId && opponentReady && (
+                <span className="px-2 py-1 text-xs bg-green-600 rounded">Ready</span>
+              )}
             </div>
           </div>
         ))}
@@ -47,13 +60,23 @@ export default function PlayerList({
       
       {gameStatus === 'lobby' && (
         <div className="mt-4">
-          <button
-            onClick={onStartGame}
-            disabled={!canStart}
-            className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
-          >
-            Start Game
-          </button>
+          {isHost ? (
+            <button
+              onClick={onStartGame}
+              disabled={!canStart || isReady}
+              className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
+            >
+              {isReady ? 'Waiting for opponent...' : opponentReady ? 'Start Game' : 'Waiting for opponent...'}
+            </button>
+          ) : (
+            <button
+              onClick={onReady}
+              disabled={!canReady || isReady}
+              className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
+            >
+              {isReady ? 'Ready!' : 'Ready'}
+            </button>
+          )}
         </div>
       )}
     </div>

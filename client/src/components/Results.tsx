@@ -1,25 +1,22 @@
 'use client';
 
 import { ResultInfo } from '@/lib/ws';
-import { useRouter } from 'next/navigation';
 
 interface ResultsProps {
   results: ResultInfo[];
   winner: string | null;
   currentPlayerId: string | null;
+  onPlayAgain?: () => void;
+  playAgainRequested?: boolean;
 }
 
 export default function Results({
   results,
   winner,
   currentPlayerId,
+  onPlayAgain,
+  playAgainRequested,
 }: ResultsProps) {
-  const router = useRouter();
-  
-  const handlePlayAgain = () => {
-    router.push('/');
-  };
-  
   const isWinner = winner === currentPlayerId || winner === '';
   
   return (
@@ -62,9 +59,19 @@ export default function Results({
         ))}
       </div>
       
+      {playAgainRequested && (
+        <div className="mt-4 p-3 bg-blue-900 border border-blue-600 rounded-md text-center">
+          <p className="text-blue-200">Your opponent wants to play again!</p>
+        </div>
+      )}
+      
       <button
-        onClick={handlePlayAgain}
-        className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-md font-medium transition-colors"
+        onClick={onPlayAgain}
+        className={`w-full mt-6 py-3 rounded-md font-medium transition-colors ${
+          playAgainRequested
+            ? 'bg-green-600 hover:bg-green-700'
+            : 'bg-blue-600 hover:bg-blue-700'
+        }`}
       >
         Play Again
       </button>
