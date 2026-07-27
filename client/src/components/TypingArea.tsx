@@ -1,89 +1,119 @@
-'use client';
+'use client'
 
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface TypingAreaProps {
-  text: string;
-  onKeystroke: (char: string, position: number) => void;
-  isActive: boolean;
-  currentPosition: number;
+  phrase: string
+  onComplete: (result: { correct: number; total: number }) => void
+  disabled?: boolean
 }
 
-export default function TypingArea({
-  text,
-  onKeystroke,
-  isActive,
-  currentPosition,
-}: TypingAreaProps) {
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const positionRef = useRef(currentPosition);
+export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaProps) {
+  const [position, setPosition] = useState(0)
+  const [errors, setErrors] = useState<Set<number>>(new Set())
+  const [correctCount, setCorrectCount] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const positionRef = useRef(0)
+  const errorsRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
-    positionRef.current = currentPosition;
-  }, [currentPosition]);
+    setPosition(0)
+    setErrors(new Set())
+    setCorrectCount(0)
+    positionRef.current = 0
+    errorsRef.current = new Set()
+  }, [phrase])
 
   useEffect(() => {
-    if (isActive && inputRef.current) {
-      inputRef.current.focus();
+    if (!disabled) {
+      inputRef.current?.focus()
     }
-  }, [isActive]);
+  }, [disabled])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isActive) return;
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (disabled) return
+    const pos = positionRef.current
+    const errs = errorsRef.current
 
     if (e.key === 'Backspace') {
-      return;
-    }
-
-    if (e.key.length === 1) {
-      const pos = positionRef.current;
-      const expectedChar = text[pos];
-      if (e.key === expectedChar) {
-        positionRef.current = pos + 1;
-        onKeystroke(e.key, pos + 1);
+      if (errs.has(pos)) {
+        const next = new Set(errs)
+        next.delete(pos)
+        errorsRef.current = next
+        setErrors(next)
+      } else if (pos > 0) {
+        const newPos = pos - 1
+        positionRef.current = newPos
+        setPosition(newPos)
+        if (!errs.has(newPos)) {
+          setCorrectCount(prev => prev - 1)
+        } else {
+          const next = new Set(errs)
+          next.delete(newPos)
+          errorsRef.current = next
+          setErrors(next)
+        }
       }
+      return
     }
-  };
+    if (e.key.length !== 1) return
+    if (pos >= phrase.length) return
+    if (e.key === phrase[pos]) {
+      const newPos = pos + 1
+      positionRef.current = newPos
+      setPosition(prev => prev + 1)
+      setCorrectCount(prev => prev + 1)
+      if (newPos === phrase.length) {
+        onComplete({ correct: positionRef.current, total: phrase.length })
+      }
+    } else {
+      const next = new Set(errs).add(pos)
+      errorsRef.current = next
+      setErrors(next)
+    }
+  }, [phrase, disabled, onComplete])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   const renderText = () => {
-    return text.split('').map((char, index) => {
-      let className = 'text-gray-500';
-
-      if (index < currentPosition) {
-        className = 'text-green-400';
-      } else if (index === currentPosition) {
-        className = 'text-white bg-gray-700';
+    return phrase.split('').map((char, index) => {
+      let className = 'text-gray-500'
+      if (index < position) {
+        if (errors.has(index)) {
+          className = 'text-red-500'
+        } else {
+          className = 'text-green-400'
+        }
+      } else if (index === position) {
+        if (errors.has(index)) {
+          className = 'text-red-500'
+        } else if (position > 0) {
+          className = 'text-white bg-gray-700'
+        }
       }
-
       return (
-        <span key={index} className={className}>
+        <span key={index} role="span" className={className}>
           {char}
         </span>
-      );
-    });
-  };
+      )
+    })
+  }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="text-lg font-mono leading-relaxed mb-4 whitespace-pre-wrap">
-        {renderText()}
-      </div>
-
+    <div className="p-4 bg-gray-900 rounded-lg">
       <input
         ref={inputRef}
         type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={!isActive}
-        className="w-full px-4 py-3 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        placeholder={isActive ? 'Start typing...' : 'Waiting for game to start...'}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck="false"
+        className="sr-only"
+        tabIndex={-1}
+        disabled={disabled}
       />
+      <div className="font-mono text-lg leading-relaxed">
+        {renderText()}
+      </div>
     </div>
-  );
+  )
 }
