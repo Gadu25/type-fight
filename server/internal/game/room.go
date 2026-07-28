@@ -65,6 +65,13 @@ func (rm *RoomManager) CreateRoom(hostID, hostName string) *Room {
 		BattleTimeLimit: BattleTimeLimit,
 	}
 	
+	room.Players[hostID] = &PlayerState{
+		ID:      hostID,
+		Name:    hostName,
+		HP:      BasePlayerHP,
+		IsAlive: true,
+	}
+	
 	rm.rooms[room.ID] = room
 	return room
 }

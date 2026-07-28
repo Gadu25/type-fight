@@ -48,20 +48,22 @@ func TestHandleJoin(t *testing.T) {
 	if resp.Type != "player_list" {
 		t.Errorf("expected type 'player_list', got '%s'", resp.Type)
 	}
-	if len(resp.Players) != 1 {
-		t.Errorf("expected 1 player in list, got %d", len(resp.Players))
+	if len(resp.Players) != 2 {
+		t.Errorf("expected 2 players in list (host + joiner), got %d", len(resp.Players))
 	}
-	if resp.Players[0].ID != "player1" {
-		t.Errorf("expected player ID 'player1', got '%s'", resp.Players[0].ID)
+	foundJoiner := false
+	for _, p := range resp.Players {
+		if p.ID == "player1" && p.Name == "Test Player" {
+			foundJoiner = true
+		}
 	}
-	if resp.Players[0].Name != "Test Player" {
-		t.Errorf("expected player name 'Test Player', got '%s'", resp.Players[0].Name)
+	if !foundJoiner {
+		t.Error("expected to find joiner 'player1' in player list")
 	}
 }
 
 func TestHandleJoinSeesExistingPlayers(t *testing.T) {
 	conn1 := &TestConnection{}
-	conn2 := &TestConnection{}
 	hub := NewHub()
 	go hub.Run()
 	defer hub.Stop()
@@ -70,28 +72,22 @@ func TestHandleJoinSeesExistingPlayers(t *testing.T) {
 	room := rm.CreateRoom("host1", "Host Player")
 	handler := NewHandler(hub, rm)
 
-	// Player 1 joins
+	// Player 1 joins (host is already in room from CreateRoom)
 	msg1 := ClientMessage{Type: "join", PlayerName: "Player 1"}
 	data1, _ := json.Marshal(msg1)
 	handler.HandleMessage(conn1, room.ID, "player1", data1)
 	time.Sleep(10 * time.Millisecond)
 
-	// Player 2 joins
-	msg2 := ClientMessage{Type: "join", PlayerName: "Player 2"}
-	data2, _ := json.Marshal(msg2)
-	handler.HandleMessage(conn2, room.ID, "player2", data2)
-	time.Sleep(10 * time.Millisecond)
-
-	// Player 2 should receive player_list with both players
-	var resp ServerMessage
-	if err := json.Unmarshal(conn2.messages[0], &resp); err != nil {
+	// Player 1 should see host + themselves
+	var resp1 ServerMessage
+	if err := json.Unmarshal(conn1.messages[0], &resp1); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
-	if resp.Type != "player_list" {
-		t.Errorf("expected type 'player_list', got '%s'", resp.Type)
+	if resp1.Type != "player_list" {
+		t.Errorf("expected type 'player_list', got '%s'", resp1.Type)
 	}
-	if len(resp.Players) != 2 {
-		t.Errorf("expected 2 players in list, got %d", len(resp.Players))
+	if len(resp1.Players) != 2 {
+		t.Errorf("expected 2 players in list (host + player1), got %d", len(resp1.Players))
 	}
 }
 
@@ -456,6 +452,115 @@ func TestHandleSwitchAttack_DiscardsProgress(t *testing.T) {
 	}
 	if lastResp.AttackPhrase.Phrase == "" {
 		t.Error("expected a non-empty phrase")
+	}
+}
+
+func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
+	hostConn := &TestConnection{}
+	p2Conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
+	hub.Register(&Client{Conn: p2Conn, RoomID: room.ID, PlayerID: "player1"})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	// Select ultimate attack (600 damage, enough to kill in 2 hits from 1000 HP)
+	selectMsg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{Tier: "ultimate"},
+	}
+	selectData, _ := json.Marshal(selectMsg)
+	handler.handleSelectAttack(hostConn, room.ID, "host1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Complete first attack (non-lethal)
+	completeMsg := CombatClientMessage{
+		Type: "attack_complete",
+		AttackComplete: &AttackCompletePayload{Correct: 100, Total: 100},
+	}
+	completeData, _ := json.Marshal(completeMsg)
+	handler.handleAttackComplete(hostConn, room.ID, "host1", completeData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Select second attack
+	handler.handleSelectAttack(hostConn, room.ID, "host1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Complete second attack (lethal - opponent should be at ~400 HP, this does 600)
+	handler.handleAttackComplete(hostConn, room.ID, "host1", completeData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Check host's messages for battle_over
+	foundBattleOver := false
+	for _, msgBytes := range hostConn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "battle_over" {
+			foundBattleOver = true
+			if resp.BattleOver == nil {
+				t.Fatal("expected battle_over payload")
+			}
+			if resp.BattleOver.Winner != "host1" {
+				t.Errorf("expected winner 'host1', got '%s'", resp.BattleOver.Winner)
+			}
+			if resp.BattleOver.Reason != "opponent_defeated" {
+				t.Errorf("expected reason 'opponent_defeated', got '%s'", resp.BattleOver.Reason)
+			}
+		}
+	}
+	if !foundBattleOver {
+		t.Error("expected battle_over message to be sent to attacker")
+	}
+
+	// Check p2's messages for battle_over
+	foundBattleOverP2 := false
+	for _, msgBytes := range p2Conn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "battle_over" {
+			foundBattleOverP2 = true
+		}
+	}
+	if !foundBattleOverP2 {
+		t.Error("expected battle_over message to be sent to defender")
+	}
+
+	// Also verify player_defeated was sent
+	foundDefeated := false
+	for _, msgBytes := range hostConn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "player_defeated" {
+			foundDefeated = true
+		}
+	}
+	if !foundDefeated {
+		t.Error("expected player_defeated message")
 	}
 }
 

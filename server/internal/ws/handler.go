@@ -78,6 +78,7 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 		Type:           "player_list",
 		Players:        players,
 		YourPlayerID:   playerID,
+		HostID:         room.HostID,
 	}
 	data, _ := json.Marshal(listMsg)
 	conn.WriteMessage(1, data)
@@ -130,18 +131,20 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
 				})
 			}
 
-			response := ServerMessage{
-				Type:    "game_start",
-				Text:    room.Text,
-				Players: players,
-			}
-
-			startData, _ := json.Marshal(response)
-			h.hub.BroadcastToRoom(roomID, startData)
-
-			go h.waitForTimeout(roomID)
+		response := ServerMessage{
+			Type:    "game_start",
+			Text:    room.Text,
+			Players: players,
+			HostID:  room.HostID,
 		}
+
+		startData, _ := json.Marshal(response)
+		h.hub.BroadcastToRoom(roomID, startData)
+
+		go h.waitForTimeout(roomID)
+		go h.waitForBattleTimeout(roomID)
 	}
+}
 }
 
 func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
@@ -184,6 +187,24 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 		}
 		lobbyData, _ := json.Marshal(lobbyMsg)
 		h.hub.BroadcastToRoom(roomID, lobbyData)
+
+		room = h.roomManager.GetRoom(roomID)
+		if room != nil {
+			players := make([]PlayerInfo, 0)
+			for _, p := range room.Players {
+				players = append(players, PlayerInfo{
+					ID:   p.ID,
+					Name: p.Name,
+				})
+			}
+			listMsg := ServerMessage{
+				Type:    "player_list",
+				Players: players,
+				HostID:  room.HostID,
+			}
+			listData, _ := json.Marshal(listMsg)
+			h.hub.BroadcastToRoom(roomID, listData)
+		}
 	}
 }
 
@@ -208,6 +229,7 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 		Type:    "game_start",
 		Text:    room.Text,
 		Players: players,
+		HostID:  room.HostID,
 	}
 
 	data, _ := json.Marshal(response)
@@ -243,7 +265,7 @@ func (h *Handler) waitForTimeout(roomID string) {
 	}
 
 	gameOverData, _ := json.Marshal(gameOverMsg)
-	h.	hub.BroadcastToRoom(roomID, gameOverData)
+	h.hub.BroadcastToRoom(roomID, gameOverData)
 }
 
 func (h *Handler) waitForBattleTimeout(roomID string) {

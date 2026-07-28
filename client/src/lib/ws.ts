@@ -25,9 +25,9 @@ export type ClientMessage =
   | { type: 'play_again' }
 
 export type ServerMessage =
-  | { type: 'player_list'; players: PlayerInfo[] }
+  | { type: 'player_list'; players: PlayerInfo[]; host_id?: string; your_player_id?: string }
   | { type: 'player_joined'; player: PlayerInfo }
-  | { type: 'game_start'; players: { id: string; name: string }[]; text: string }
+  | { type: 'game_start'; players: { id: string; name: string }[]; text: string; host_id?: string }
   | { type: 'progress'; player_id: string; position: number; wpm: number }
   | { type: 'player_finished'; player_finished: PlayerInfo }
   | { type: 'player_ready'; ready_player_id: string }
@@ -45,12 +45,14 @@ export type MessageHandler = (message: ServerMessage) => void
 export function createWebSocket(
   roomID: string,
   onMessage: MessageHandler,
+  playerID?: string,
   onOpen?: () => void,
   onClose?: () => void,
   onError?: (error: Event) => void
 ): WebSocket {
   const wsUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'ws://localhost:8080'
-  const ws = new WebSocket(`${wsUrl}/ws/room/${roomID}`)
+  const params = playerID ? `?player_id=${encodeURIComponent(playerID)}` : ''
+  const ws = new WebSocket(`${wsUrl}/ws/room/${roomID}${params}`)
 
   ws.onopen = () => {
     if (onOpen) onOpen()

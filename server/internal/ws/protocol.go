@@ -32,6 +32,7 @@ type ServerMessage struct {
 	ReadyPlayerID  string           `json:"ready_player_id,omitempty"`
 	OpponentName   string           `json:"opponent_name,omitempty"`
 	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
+	HostID         string           `json:"host_id,omitempty"`
 }
 
 type PlayerInfo struct {

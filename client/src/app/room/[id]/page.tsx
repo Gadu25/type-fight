@@ -60,23 +60,32 @@ export default function RoomPage() {
   const gameOverProcessedRef = useRef<boolean>(false)
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {})
 
+  const handleJoinMessage = useCallback(() => {
+    const account = getAccount()
+    if (wsRef.current) {
+      sendMessage(wsRef.current, { type: 'join', player_name: account?.name || 'Player' })
+    }
+  }, [])
+
   useEffect(() => {
     const account = getAccount()
-    if (!account) {
+    const serverPlayerId = localStorage.getItem('playerId')
+    const effectivePlayerId = serverPlayerId || account?.id || null
+
+    if (!effectivePlayerId) {
       setShowNameModal(true)
       return
     }
 
-    setPlayerId(account.id)
-    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg))
+    setPlayerId(effectivePlayerId)
+    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg), effectivePlayerId || undefined, handleJoinMessage)
     wsRef.current = ws
-    sendMessage(ws, { type: 'join', player_name: account.name })
 
     return () => {
       ws.close()
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [roomID])
+  }, [roomID, handleJoinMessage])
 
   const handleMessage = useCallback((message: ServerMessage) => {
     switch (message.type) {
@@ -90,8 +99,11 @@ export default function RoomPage() {
             hp: 1000,
             isAlive: true
           })))
-          if (message.players.length > 0 && !hostId) {
-            setHostId(message.players[0].id)
+          if (message.host_id) {
+            setHostId(message.host_id)
+          }
+          if (message.your_player_id) {
+            setPlayerId(message.your_player_id)
           }
         }
         break
@@ -132,6 +144,10 @@ export default function RoomPage() {
           setPlayAgainRequested(false)
           gameOverProcessedRef.current = false
 
+          if ((message as any).host_id) {
+            setHostId((message as any).host_id)
+          }
+
           const me = battlePlayers.find(p => p.id === playerId)
           const opponent = battlePlayers.find(p => p.id !== playerId)
           if (!me && battlePlayers.length > 0) {
@@ -152,8 +168,18 @@ export default function RoomPage() {
         if (message.hp_update) {
           if (message.hp_update.playerID === playerId) {
             setPlayerHP(message.hp_update.hp)
+            if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
+              gameOverProcessedRef.current = true
+              setWinner(message.hp_update.attacker)
+              setGameState('finished')
+            }
           } else {
             setOpponentHP(message.hp_update.hp)
+            if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
+              gameOverProcessedRef.current = true
+              setWinner(playerId || '')
+              setGameState('finished')
+            }
           }
         }
         break
@@ -162,7 +188,8 @@ export default function RoomPage() {
         break
 
       case 'battle_over':
-        if (message.battle_over) {
+        if (message.battle_over && !gameOverProcessedRef.current) {
+          gameOverProcessedRef.current = true
           setWinner(message.battle_over.winner)
           setGameState('finished')
         }
@@ -185,6 +212,7 @@ export default function RoomPage() {
       case 'return_to_lobby':
         setGameState('lobby')
         setPlayers([])
+        setHostId(null)
         setIsReady(false)
         setOpponentReady(false)
         setPlayAgainRequested(false)
@@ -276,13 +304,14 @@ export default function RoomPage() {
 
   const handleNameSubmitted = useCallback((name: string) => {
     const account = createAccount(name)
-    setPlayerId(account.id)
+    const serverPlayerId = localStorage.getItem('playerId')
+    const effectivePlayerId = serverPlayerId || account.id
+    setPlayerId(effectivePlayerId)
     setShowNameModal(false)
 
-    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg))
+    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg), effectivePlayerId || undefined, handleJoinMessage)
     wsRef.current = ws
-    sendMessage(ws, { type: 'join', player_name: account.name })
-  }, [roomID])
+  }, [roomID, handleJoinMessage])
 
   const isHost = playerId === hostId
   const currentPlayer = players.find(p => p.id === playerId)
