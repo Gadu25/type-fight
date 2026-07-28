@@ -408,10 +408,10 @@ export default function RoomPage() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-2">
             <Image
-              src="/images/icon.webp"
+              src="/images/iconv2.webp"
               alt="Type Fight"
-              width={28}
-              height={28}
+              width={80}
+              height={80}
               className="rounded"
             />
             <h1 className="text-2xl font-bold">Type Fight</h1>
@@ -506,10 +506,6 @@ export default function RoomPage() {
                       Attack: {currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)} ({currentDamage} dmg)
                     </div>
                   )}
-                  <div className="flex gap-4">
-                    <span>opponentDamageFlash, {opponentDamageFlash}</span>
-                    <span>playerDamageFlash, {playerDamageFlash}</span>
-                  </div>
                 </div>
               </div>
             )}
