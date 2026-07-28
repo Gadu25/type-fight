@@ -9,6 +9,25 @@ interface TypingAreaProps {
   damageFlash?: number
 }
 
+function generateShakeKeyframe(damage: number): string {
+  const cycles = Math.round(3 + (damage / 600) * 7)
+  const maxOffset = 4 + (damage / 600) * 6
+  const maxBlur = 1 + (damage / 600) * 3
+  const steps: string[] = ['0% { transform: translateX(0); filter: blur(0); }']
+  for (let i = 0; i < cycles; i++) {
+    const progress = (i + 1) / (cycles + 1)
+    const decay = 1 - progress
+    const left = Math.round(progress * 100 * 0.5)
+    const right = Math.round((1 - progress) * 100 * 0.5 + progress * 50)
+    const offset = Math.round(maxOffset * decay * 10) / 10
+    const blur = Math.round(maxBlur * decay * 10) / 10
+    steps.push(`${left}% { transform: translateX(-${offset}px); filter: blur(${blur}px); }`)
+    steps.push(`${right}% { transform: translateX(${offset}px); filter: blur(${blur}px); }`)
+  }
+  steps.push('100% { transform: translateX(0); filter: blur(0); }')
+  return steps.join('\n')
+}
+
 export default function TypingArea({ phrase, onComplete, disabled, damageFlash = 0 }: TypingAreaProps) {
   const [position, setPosition] = useState(0)
   const [errors, setErrors] = useState<Set<number>>(new Set())
@@ -18,6 +37,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
   const correctCountRef = useRef(0)
   const damageKeyRef = useRef(0)
   const [damageKey, setDamageKey] = useState(0)
+  const [animName, setAnimName] = useState('')
 
   useEffect(() => {
     setPosition(0)
@@ -35,8 +55,16 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
 
   useEffect(() => {
     if (damageFlash > 0) {
+      const name = `damage-shake-${damageKeyRef.current + 1}`
       damageKeyRef.current += 1
       setDamageKey(damageKeyRef.current)
+      setAnimName(name)
+
+      const css = `@keyframes ${name} { ${generateShakeKeyframe(damageFlash)} }`
+      const style = document.createElement('style')
+      style.textContent = css
+      document.head.appendChild(style)
+      return () => { document.head.removeChild(style) }
     }
   }, [damageFlash])
 
@@ -119,7 +147,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
       key={damageKey}
       className="p-4 bg-gray-900 rounded-lg"
       style={damageFlash > 0 ? {
-        animation: `damage-shake ${0.3 + (damageFlash / 600) * 0.4}s ease-out`,
+        animation: `${animName} ${0.3 + (damageFlash / 600) * 0.9}s ease-out`,
       } : undefined}
     >
       <input
