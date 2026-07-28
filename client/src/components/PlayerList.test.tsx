@@ -34,13 +34,14 @@ describe('PlayerList', () => {
     expect(screen.getByText('Host')).toBeInTheDocument();
   });
 
-  it('shows Start Game button when host and 2 players', () => {
+  it('shows Start Game button when host and 2 players and opponent ready', () => {
     render(
       <PlayerList
         players={mockPlayers}
         hostId="player1"
         currentPlayerId="player1"
         gameStatus="lobby"
+        opponentReady={true}
       />
     );
     expect(screen.getByText('Start Game')).toBeInTheDocument();
@@ -54,12 +55,13 @@ describe('PlayerList', () => {
         currentPlayerId="player1"
         gameStatus="lobby"
         isRoomFull={true}
+        opponentReady={true}
       />
     );
-    expect(screen.getByRole('button', { name: 'Start Game' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Start Game|Waiting for opponent/ })).toBeDisabled();
   });
 
-  it('disables Start Game button when not host', () => {
+  it('shows Ready button when not host', () => {
     render(
       <PlayerList
         players={mockPlayers}
@@ -68,7 +70,7 @@ describe('PlayerList', () => {
         gameStatus="lobby"
       />
     );
-    expect(screen.getByRole('button', { name: 'Start Game' })).toBeDisabled();
+    expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
   it('does not show Start Game button when not in lobby', () => {

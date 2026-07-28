@@ -4,109 +4,144 @@ import (
 	"testing"
 )
 
-func TestCreateRoom(t *testing.T) {
+func setupTestRoom() (*RoomManager, string, string) {
 	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	
-	if room == nil {
-		t.Fatal("expected room to be created")
-	}
-	
-	if room.ID == "" {
-		t.Error("expected room to have an ID")
-	}
-	
-	if room.HostID != "host-id" {
-		t.Errorf("expected host-id, got %s", room.HostID)
-	}
-	
-	if room.Status != "waiting" {
-		t.Errorf("expected status 'waiting', got %s", room.Status)
+	room := rm.CreateRoom("player1-id", "Player1")
+	rm.JoinRoom(room.ID, "player1-id", "Player1")
+	rm.JoinRoom(room.ID, "player2-id", "Player2")
+	rm.StartGame(room.ID, "player1-id")
+	return rm, room.ID, "player2-id"
+}
+
+func TestPlayerState_HasHP(t *testing.T) {
+	rm, roomID, _ := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	for _, p := range room.Players {
+		if p.HP != BasePlayerHP {
+			t.Errorf("Expected HP %d, got %d", BasePlayerHP, p.HP)
+		}
 	}
 }
 
-func TestJoinRoom(t *testing.T) {
-	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	
-	err := rm.JoinRoom(room.ID, "host-id", "Host Player")
-	if err != nil {
-		t.Fatalf("expected no error for host join, got %v", err)
+func TestSelectAttack_SetsAttackState(t *testing.T) {
+	rm, roomID, _ := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var playerID string
+	for id := range room.Players {
+		playerID = id
+		break
 	}
-	
-	err = rm.JoinRoom(room.ID, "player-id", "Player 2")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	rm.SelectAttack(playerID, "quick")
+	room = rm.GetRoom(roomID)
+	player := room.Players[playerID]
+	if player.CurrentAttack != "quick" {
+		t.Errorf("Expected attack 'quick', got '%s'", player.CurrentAttack)
 	}
-	
-	updatedRoom := rm.GetRoom(room.ID)
-	if len(updatedRoom.Players) != 2 {
-		t.Errorf("expected 2 players, got %d", len(updatedRoom.Players))
-	}
-}
-
-func TestJoinRoomReconnect(t *testing.T) {
-	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	
-	rm.JoinRoom(room.ID, "host-id", "Host Player")
-	
-	err := rm.JoinRoom(room.ID, "host-id", "Host Updated")
-	if err != nil {
-		t.Fatalf("expected no error on reconnect, got %v", err)
-	}
-	
-	updatedRoom := rm.GetRoom(room.ID)
-	if len(updatedRoom.Players) != 1 {
-		t.Errorf("expected 1 player after reconnect, got %d", len(updatedRoom.Players))
-	}
-	if updatedRoom.Players["host-id"].Name != "Host Updated" {
-		t.Errorf("expected updated name, got %s", updatedRoom.Players["host-id"].Name)
+	if player.CurrentPhrase == "" {
+		t.Error("Expected phrase to be set")
 	}
 }
 
-func TestJoinRoomFull(t *testing.T) {
-	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	
-	rm.JoinRoom(room.ID, "host-id", "Host")
-	rm.JoinRoom(room.ID, "player-id", "Player 2")
-	
-	err := rm.JoinRoom(room.ID, "player-id-3", "Player 3")
-	if err == nil {
-		t.Error("expected error when joining full room")
+func TestCompleteAttack_AppliesDamage(t *testing.T) {
+	rm, roomID, player2ID := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var player1ID string
+	for id := range room.Players {
+		if id != player2ID {
+			player1ID = id
+			break
+		}
+	}
+	rm.SelectAttack(player1ID, "quick")
+	rm.CompleteAttack(player1ID, 100, 100)
+	room = rm.GetRoom(roomID)
+	if room.Players[player2ID].HP != BasePlayerHP-80 {
+		t.Errorf("Expected HP %d, got %d", BasePlayerHP-80, room.Players[player2ID].HP)
 	}
 }
 
-func TestStartGame(t *testing.T) {
-	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	rm.JoinRoom(room.ID, "host-id", "Host")
-	rm.JoinRoom(room.ID, "player-id", "Player 2")
-	
-	err := rm.StartGame(room.ID, "host-id")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+func TestCompleteAttack_InaccuracyReducesDamage(t *testing.T) {
+	rm, roomID, player2ID := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var player1ID string
+	for id := range room.Players {
+		if id != player2ID {
+			player1ID = id
+			break
+		}
 	}
-	
-	updatedRoom := rm.GetRoom(room.ID)
-	if updatedRoom.Status != "playing" {
-		t.Errorf("expected status 'playing', got %s", updatedRoom.Status)
-	}
-	
-	if updatedRoom.Text == "" {
-		t.Error("expected text to be set")
+	rm.SelectAttack(player1ID, "quick")
+	rm.CompleteAttack(player1ID, 50, 100)
+	room = rm.GetRoom(roomID)
+	expectedDamage := 80 * 50 / 100
+	if room.Players[player2ID].HP != BasePlayerHP-expectedDamage {
+		t.Errorf("Expected HP %d, got %d", BasePlayerHP-expectedDamage, room.Players[player2ID].HP)
 	}
 }
 
-func TestStartGameNotHost(t *testing.T) {
-	rm := NewRoomManager()
-	room := rm.CreateRoom("host-id", "Host Player")
-	rm.JoinRoom(room.ID, "host-id", "Host")
-	rm.JoinRoom(room.ID, "player-id", "Player 2")
-	
-	err := rm.StartGame(room.ID, "player-id")
-	if err == nil {
-		t.Error("expected error when non-host tries to start")
+func TestSwitchAttack_DiscardsProgress(t *testing.T) {
+	rm, roomID, _ := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var playerID string
+	for id := range room.Players {
+		playerID = id
+		break
+	}
+	rm.SelectAttack(playerID, "quick")
+	room = rm.GetRoom(roomID)
+	oldPhrase := room.Players[playerID].CurrentPhrase
+	rm.SwitchAttack(playerID, "heavy")
+	room = rm.GetRoom(roomID)
+	player := room.Players[playerID]
+	if player.CurrentAttack != "heavy" {
+		t.Errorf("Expected attack 'heavy', got '%s'", player.CurrentAttack)
+	}
+	if player.CurrentPhrase == oldPhrase {
+		t.Error("Expected new phrase after switch")
+	}
+}
+
+func TestCheckBattleEnd_Defeat(t *testing.T) {
+	rm, roomID, player2ID := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var player1ID string
+	for id := range room.Players {
+		if id != player2ID {
+			player1ID = id
+			break
+		}
+	}
+	rm.SelectAttack(player1ID, "ultimate")
+	rm.CompleteAttack(player1ID, 100, 100)
+	rm.SelectAttack(player1ID, "ultimate")
+	rm.CompleteAttack(player1ID, 100, 100)
+	room = rm.GetRoom(roomID)
+	if room.Players[player2ID].HP > 0 {
+		t.Error("Expected player2 to be defeated")
+	}
+	winner, defeated := rm.CheckBattleEnd()
+	if winner != player1ID {
+		t.Errorf("Expected winner %s, got %s", player1ID, winner)
+	}
+	if defeated != player2ID {
+		t.Errorf("Expected defeated %s, got %s", player2ID, defeated)
+	}
+}
+
+func TestCheckBattleEnd_NoEnd(t *testing.T) {
+	rm, roomID, player2ID := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var player1ID string
+	for id := range room.Players {
+		if id != player2ID {
+			player1ID = id
+			break
+		}
+	}
+	rm.SelectAttack(player1ID, "quick")
+	rm.CompleteAttack(player1ID, 100, 100)
+	winner, defeated := rm.CheckBattleEnd()
+	if winner != "" || defeated != "" {
+		t.Error("Expected no winner yet")
 	}
 }

@@ -1,5 +1,10 @@
 package ws
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // Client -> Server messages
 // Supported types: "join", "ready", "start_game", "keystroke", "play_again"
 type ClientMessage struct {
@@ -27,6 +32,7 @@ type ServerMessage struct {
 	ReadyPlayerID  string           `json:"ready_player_id,omitempty"`
 	OpponentName   string           `json:"opponent_name,omitempty"`
 	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
+	HostID         string           `json:"host_id,omitempty"`
 }
 
 type PlayerInfo struct {
@@ -44,4 +50,75 @@ type ResultInfo struct {
 
 type ErrorMessage struct {
 	Message string `json:"message"`
+}
+
+// Combat Client -> Server messages
+type CombatClientMessage struct {
+	Type           string                  `json:"type"`
+	SelectAttack   *SelectAttackPayload    `json:"select_attack,omitempty"`
+	AttackComplete *AttackCompletePayload  `json:"attack_complete,omitempty"`
+	SwitchAttack   *SwitchAttackPayload    `json:"switch_attack,omitempty"`
+}
+
+type SelectAttackPayload struct {
+	Tier string `json:"tier"`
+}
+
+type AttackCompletePayload struct {
+	Correct int `json:"correct"`
+	Total   int `json:"total"`
+}
+
+type SwitchAttackPayload struct {
+	Tier string `json:"tier"`
+}
+
+// Combat Server -> Client messages
+type CombatServerMessage struct {
+	Type         string                `json:"type"`
+	AttackPhrase *AttackPhrasePayload  `json:"attack_phrase,omitempty"`
+	HpUpdate     *HpUpdatePayload      `json:"hp_update,omitempty"`
+	PlayerDefeated *PlayerDefeatedPayload `json:"player_defeated,omitempty"`
+	BattleOver   *BattleOverPayload    `json:"battle_over,omitempty"`
+	GameStart    *GameStartPayload     `json:"game_start,omitempty"`
+}
+
+type AttackPhrasePayload struct {
+	Phrase string `json:"phrase"`
+	Tier   string `json:"tier"`
+	Damage int    `json:"damage"`
+}
+
+type HpUpdatePayload struct {
+	PlayerID string `json:"playerID"`
+	HP       int    `json:"hp"`
+	Attacker string `json:"attacker"`
+	Damage   int    `json:"damage"`
+}
+
+type PlayerDefeatedPayload struct {
+	PlayerID string `json:"playerID"`
+}
+
+type BattleOverPayload struct {
+	Winner string `json:"winner"`
+	Reason string `json:"reason"`
+}
+
+type GameStartPayload struct {
+	Players []CombatPlayerInfo `json:"players"`
+}
+
+type CombatPlayerInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	HP   int    `json:"hp"`
+}
+
+func ParseClientMessage(data []byte) (*ClientMessage, error) {
+	var msg ClientMessage
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return nil, fmt.Errorf("invalid message format: %v", err)
+	}
+	return &msg, nil
 }

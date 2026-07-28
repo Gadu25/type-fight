@@ -9,27 +9,37 @@ import (
 )
 
 type PlayerState struct {
-	ID         string
-	Name       string
-	Position   int
-	Correct    int
-	Total      int
-	StartTime        time.Time
-	Finished         bool
-	FinishTime       time.Time
+	ID                 string
+	Name               string
+	Position           int
+	Correct            int
+	Total              int
+	StartTime          time.Time
+	Finished           bool
+	FinishTime         time.Time
 	FirstKeystrokeTime time.Time
 	Ready              bool
 	WantsPlayAgain     bool
+	HP                 int
+	CurrentAttack      string
+	CurrentPhrase      string
+	PhraseCorrect      int
+	PhraseTotal        int
+	AttackStartTime    time.Time
+	IsAlive            bool
 }
 
 type Room struct {
-	ID        string
-	Players   map[string]*PlayerState
-	HostID    string
-	Status    string // "waiting", "playing", "finished"
-	Text      string
-	GameStart time.Time
-	mu        sync.RWMutex
+	ID               string
+	Players          map[string]*PlayerState
+	HostID           string
+	Status           string // "waiting", "playing", "finished"
+	Text             string
+	GameStart        time.Time
+	BattleStartTime  time.Time
+	BattleTimeLimit  time.Duration
+	Winner           string
+	mu               sync.RWMutex
 }
 
 type RoomManager struct {
@@ -48,10 +58,18 @@ func (rm *RoomManager) CreateRoom(hostID, hostName string) *Room {
 	defer rm.mu.Unlock()
 	
 	room := &Room{
-		ID:      generateID(),
-		Players: make(map[string]*PlayerState),
-		HostID:  hostID,
-		Status:  "waiting",
+		ID:              generateID(),
+		Players:         make(map[string]*PlayerState),
+		HostID:          hostID,
+		Status:          "waiting",
+		BattleTimeLimit: BattleTimeLimit,
+	}
+	
+	room.Players[hostID] = &PlayerState{
+		ID:      hostID,
+		Name:    hostName,
+		HP:      BasePlayerHP,
+		IsAlive: true,
 	}
 	
 	rm.rooms[room.ID] = room
@@ -80,8 +98,10 @@ func (rm *RoomManager) JoinRoom(roomID, playerID, playerName string) error {
 	}
 	
 	room.Players[playerID] = &PlayerState{
-		ID:   playerID,
-		Name: playerName,
+		ID:      playerID,
+		Name:    playerName,
+		HP:      BasePlayerHP,
+		IsAlive: true,
 	}
 	
 	return nil
@@ -110,6 +130,7 @@ func (rm *RoomManager) StartGame(roomID, playerID string) error {
 	room.Status = "playing"
 	room.Text = GetRandomText()
 	room.GameStart = time.Now()
+	room.BattleStartTime = time.Now()
 	
 	for _, p := range room.Players {
 		p.StartTime = room.GameStart
@@ -362,6 +383,8 @@ func (rm *RoomManager) ResetRoom(roomID string) error {
 	room.Status = "lobby"
 	room.Text = ""
 	room.GameStart = time.Time{}
+	room.BattleStartTime = time.Time{}
+	room.Winner = ""
 
 	for _, p := range room.Players {
 		p.Position = 0
@@ -371,9 +394,211 @@ func (rm *RoomManager) ResetRoom(roomID string) error {
 		p.StartTime = time.Time{}
 		p.Ready = false
 		p.WantsPlayAgain = false
+		p.HP = BasePlayerHP
+		p.CurrentAttack = ""
+		p.CurrentPhrase = ""
+		p.PhraseCorrect = 0
+		p.PhraseTotal = 0
+		p.AttackStartTime = time.Time{}
+		p.IsAlive = true
 	}
 
 	return nil
+}
+
+func (rm *RoomManager) SetRoomStatus(roomID, status string) error {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+	room.Status = status
+	return nil
+}
+
+func (rm *RoomManager) SelectAttack(playerID, tier string) error {
+	def := GetAttackDef(tier)
+	if def.Damage == 0 {
+		return fmt.Errorf("invalid attack tier: %s", tier)
+	}
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	for _, room := range rm.rooms {
+		room.mu.Lock()
+		player, exists := room.Players[playerID]
+		if !exists {
+			room.mu.Unlock()
+			continue
+		}
+		player.CurrentAttack = tier
+		player.CurrentPhrase = GetRandomPhrase(tier)
+		player.PhraseCorrect = 0
+		player.PhraseTotal = len(player.CurrentPhrase)
+		player.AttackStartTime = time.Now()
+		room.mu.Unlock()
+		return nil
+	}
+	return fmt.Errorf("player not found")
+}
+
+type AttackResult struct {
+	OpponentID string
+	OldHP      int
+	NewHP      int
+	Damage     int
+}
+
+func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*AttackResult, error) {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	for _, room := range rm.rooms {
+		room.mu.Lock()
+		attacker, exists := room.Players[playerID]
+		if !exists {
+			room.mu.Unlock()
+			continue
+		}
+		if attacker.CurrentAttack == "" {
+			room.mu.Unlock()
+			return nil, fmt.Errorf("no active attack")
+		}
+		def := GetAttackDef(attacker.CurrentAttack)
+		accuracy := CalculateAccuracy(correct, total)
+		damage := CalculateDamage(def.Damage, accuracy)
+		var result *AttackResult
+		for id, p := range room.Players {
+			if id != playerID && p.IsAlive {
+				oldHP := p.HP
+				p.HP -= damage
+				if p.HP <= 0 {
+					p.HP = 0
+					p.IsAlive = false
+				}
+				result = &AttackResult{
+					OpponentID: id,
+					OldHP:      oldHP,
+					NewHP:      p.HP,
+					Damage:     oldHP - p.HP,
+				}
+			}
+		}
+		attacker.CurrentAttack = ""
+		attacker.CurrentPhrase = ""
+		attacker.PhraseCorrect = 0
+		attacker.PhraseTotal = 0
+		room.mu.Unlock()
+		if result == nil {
+			return nil, fmt.Errorf("no valid opponent found")
+		}
+		return result, nil
+	}
+	return nil, fmt.Errorf("player not found")
+}
+
+func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
+	def := GetAttackDef(newTier)
+	if def.Damage == 0 {
+		return fmt.Errorf("invalid attack tier: %s", newTier)
+	}
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	for _, room := range rm.rooms {
+		room.mu.Lock()
+		player, exists := room.Players[playerID]
+		if !exists {
+			room.mu.Unlock()
+			continue
+		}
+		player.CurrentAttack = newTier
+		player.CurrentPhrase = GetRandomPhrase(newTier)
+		player.PhraseCorrect = 0
+		player.PhraseTotal = len(player.CurrentPhrase)
+		player.AttackStartTime = time.Now()
+		room.mu.Unlock()
+		return nil
+	}
+	return fmt.Errorf("player not found")
+}
+
+func (rm *RoomManager) CheckBattleEnd() (winner string, defeated string) {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	for _, room := range rm.rooms {
+		room.mu.RLock()
+		if room.Status != "playing" {
+			room.mu.RUnlock()
+			continue
+		}
+		for id, p := range room.Players {
+			if !p.IsAlive {
+				for otherID, other := range room.Players {
+					if otherID != id && other.IsAlive {
+						room.mu.RUnlock()
+						return otherID, id
+					}
+				}
+			}
+		}
+		if time.Since(room.BattleStartTime) > room.BattleTimeLimit {
+			var highestHP int
+			var winnerID string
+			for id, p := range room.Players {
+				if p.HP > highestHP {
+					highestHP = p.HP
+					winnerID = id
+				}
+			}
+			for id := range room.Players {
+				if id != winnerID {
+					room.mu.RUnlock()
+					return winnerID, id
+				}
+			}
+		}
+		room.mu.RUnlock()
+	}
+	return "", ""
+}
+
+func (rm *RoomManager) HandleBattleTimeout(roomID string) (winner, defeated string) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return "", ""
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if room.Status != "playing" {
+		return "", ""
+	}
+
+	var highestHP int
+	var winnerID string
+	var defeatedID string
+	for id, p := range room.Players {
+		if p.HP > highestHP {
+			highestHP = p.HP
+			winnerID = id
+		}
+	}
+	for id := range room.Players {
+		if id != winnerID {
+			defeatedID = id
+			break
+		}
+	}
+
+	room.Status = "finished"
+	return winnerID, defeatedID
 }
 
 func generateID() string {

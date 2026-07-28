@@ -1,89 +1,165 @@
-'use client';
+'use client'
 
-import { useEffect, useRef, useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface TypingAreaProps {
-  text: string;
-  onKeystroke: (char: string, position: number) => void;
-  isActive: boolean;
-  currentPosition: number;
+  phrase: string
+  onComplete: (result: { correct: number; total: number }) => void
+  disabled?: boolean
+  damageFlash?: number
 }
 
-export default function TypingArea({
-  text,
-  onKeystroke,
-  isActive,
-  currentPosition,
-}: TypingAreaProps) {
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const positionRef = useRef(currentPosition);
+function generateShakeKeyframe(damage: number): string {
+  const cycles = Math.round(3 + (damage / 600) * 7)
+  const maxOffset = 4 + (damage / 600) * 6
+  const maxBlur = 1 + (damage / 600) * 3
+  const steps: string[] = ['0% { transform: translateX(0); filter: blur(0); }']
+  for (let i = 0; i < cycles; i++) {
+    const progress = (i + 1) / (cycles + 1)
+    const decay = 1 - progress
+    const left = Math.round(progress * 100 * 0.5)
+    const right = Math.round((1 - progress) * 100 * 0.5 + progress * 50)
+    const offset = Math.round(maxOffset * decay * 10) / 10
+    const blur = Math.round(maxBlur * decay * 10) / 10
+    steps.push(`${left}% { transform: translateX(-${offset}px); filter: blur(${blur}px); }`)
+    steps.push(`${right}% { transform: translateX(${offset}px); filter: blur(${blur}px); }`)
+  }
+  steps.push('100% { transform: translateX(0); filter: blur(0); }')
+  return steps.join('\n')
+}
+
+export default function TypingArea({ phrase, onComplete, disabled, damageFlash = 0 }: TypingAreaProps) {
+  const [position, setPosition] = useState(0)
+  const [errors, setErrors] = useState<Set<number>>(new Set())
+  const inputRef = useRef<HTMLInputElement>(null)
+  const positionRef = useRef(0)
+  const errorsRef = useRef<Set<number>>(new Set())
+  const correctCountRef = useRef(0)
+  const damageKeyRef = useRef(0)
+  const [damageKey, setDamageKey] = useState(0)
+  const [animName, setAnimName] = useState('')
 
   useEffect(() => {
-    positionRef.current = currentPosition;
-  }, [currentPosition]);
+    setPosition(0)
+    setErrors(new Set())
+    positionRef.current = 0
+    errorsRef.current = new Set()
+    correctCountRef.current = 0
+  }, [phrase])
 
   useEffect(() => {
-    if (isActive && inputRef.current) {
-      inputRef.current.focus();
+    if (!disabled) {
+      inputRef.current?.focus()
     }
-  }, [isActive]);
+  }, [disabled])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isActive) return;
+  useEffect(() => {
+    if (damageFlash > 0) {
+      const name = `damage-shake-${damageKeyRef.current + 1}`
+      damageKeyRef.current += 1
+      setDamageKey(damageKeyRef.current)
+      setAnimName(name)
+
+      const css = `@keyframes ${name} { ${generateShakeKeyframe(damageFlash)} }`
+      const style = document.createElement('style')
+      style.textContent = css
+      document.head.appendChild(style)
+      return () => { document.head.removeChild(style) }
+    }
+  }, [damageFlash])
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (disabled) return
+    const pos = positionRef.current
+    const errs = errorsRef.current
 
     if (e.key === 'Backspace') {
-      return;
-    }
-
-    if (e.key.length === 1) {
-      const pos = positionRef.current;
-      const expectedChar = text[pos];
-      if (e.key === expectedChar) {
-        positionRef.current = pos + 1;
-        onKeystroke(e.key, pos + 1);
+      e.preventDefault()
+      if (errs.has(pos)) {
+        const next = new Set(errs)
+        next.delete(pos)
+        errorsRef.current = next
+        setErrors(next)
+      } else if (pos > 0) {
+        const newPos = pos - 1
+        positionRef.current = newPos
+        setPosition(newPos)
+        if (!errs.has(newPos)) {
+          correctCountRef.current -= 1
+        } else {
+          const next = new Set(errs)
+          next.delete(newPos)
+          errorsRef.current = next
+          setErrors(next)
+        }
       }
+      return
     }
-  };
+    if (e.key.length !== 1) return
+    if (pos >= phrase.length) return
+    e.preventDefault()
+    if (e.key === phrase[pos]) {
+      const newPos = pos + 1
+      positionRef.current = newPos
+      setPosition(prev => prev + 1)
+      correctCountRef.current += 1
+      if (newPos === phrase.length) {
+        onComplete({ correct: correctCountRef.current, total: phrase.length })
+      }
+    } else {
+      const next = new Set(errs).add(pos)
+      errorsRef.current = next
+      setErrors(next)
+    }
+  }, [phrase, disabled, onComplete])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   const renderText = () => {
-    return text.split('').map((char, index) => {
-      let className = 'text-gray-500';
-
-      if (index < currentPosition) {
-        className = 'text-green-400';
-      } else if (index === currentPosition) {
-        className = 'text-white bg-gray-700';
+    return phrase.split('').map((char, index) => {
+      let className = 'text-gray-500'
+      if (index < position) {
+        if (errors.has(index)) {
+          className = 'text-red-500'
+        } else {
+          className = 'text-green-400'
+        }
+      } else if (index === position) {
+        if (errors.has(index)) {
+          className = 'text-red-500'
+        } else if (position > 0) {
+          className = 'text-white bg-gray-700'
+        }
       }
-
       return (
-        <span key={index} className={className}>
+        <span key={index} role="span" className={className}>
           {char}
         </span>
-      );
-    });
-  };
+      )
+    })
+  }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="text-lg font-mono leading-relaxed mb-4 whitespace-pre-wrap">
-        {renderText()}
-      </div>
-
+    <div
+      key={damageKey}
+      className="p-4 bg-gray-900 rounded-lg"
+      style={damageFlash > 0 ? {
+        animation: `${animName} ${0.3 + (damageFlash / 600) * 0.9}s ease-out`,
+      } : undefined}
+    >
       <input
         ref={inputRef}
         type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={!isActive}
-        className="w-full px-4 py-3 bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        placeholder={isActive ? 'Start typing...' : 'Waiting for game to start...'}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck="false"
+        className="sr-only"
+        tabIndex={-1}
+        disabled={disabled}
       />
+      <div className="font-mono text-lg leading-relaxed">
+        {renderText()}
+      </div>
     </div>
-  );
+  )
 }
