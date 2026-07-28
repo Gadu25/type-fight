@@ -6,22 +6,25 @@ interface TypingAreaProps {
   phrase: string
   onComplete: (result: { correct: number; total: number }) => void
   disabled?: boolean
+  damageFlash?: number
 }
 
-export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaProps) {
+export default function TypingArea({ phrase, onComplete, disabled, damageFlash = 0 }: TypingAreaProps) {
   const [position, setPosition] = useState(0)
   const [errors, setErrors] = useState<Set<number>>(new Set())
-  const [correctCount, setCorrectCount] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const positionRef = useRef(0)
   const errorsRef = useRef<Set<number>>(new Set())
+  const correctCountRef = useRef(0)
+  const damageKeyRef = useRef(0)
+  const [damageKey, setDamageKey] = useState(0)
 
   useEffect(() => {
     setPosition(0)
     setErrors(new Set())
-    setCorrectCount(0)
     positionRef.current = 0
     errorsRef.current = new Set()
+    correctCountRef.current = 0
   }, [phrase])
 
   useEffect(() => {
@@ -30,12 +33,20 @@ export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaP
     }
   }, [disabled])
 
+  useEffect(() => {
+    if (damageFlash > 0) {
+      damageKeyRef.current += 1
+      setDamageKey(damageKeyRef.current)
+    }
+  }, [damageFlash])
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (disabled) return
     const pos = positionRef.current
     const errs = errorsRef.current
 
     if (e.key === 'Backspace') {
+      e.preventDefault()
       if (errs.has(pos)) {
         const next = new Set(errs)
         next.delete(pos)
@@ -46,7 +57,7 @@ export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaP
         positionRef.current = newPos
         setPosition(newPos)
         if (!errs.has(newPos)) {
-          setCorrectCount(prev => prev - 1)
+          correctCountRef.current -= 1
         } else {
           const next = new Set(errs)
           next.delete(newPos)
@@ -58,13 +69,14 @@ export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaP
     }
     if (e.key.length !== 1) return
     if (pos >= phrase.length) return
+    e.preventDefault()
     if (e.key === phrase[pos]) {
       const newPos = pos + 1
       positionRef.current = newPos
       setPosition(prev => prev + 1)
-      setCorrectCount(prev => prev + 1)
+      correctCountRef.current += 1
       if (newPos === phrase.length) {
-        onComplete({ correct: positionRef.current, total: phrase.length })
+        onComplete({ correct: correctCountRef.current, total: phrase.length })
       }
     } else {
       const next = new Set(errs).add(pos)
@@ -103,7 +115,13 @@ export default function TypingArea({ phrase, onComplete, disabled }: TypingAreaP
   }
 
   return (
-    <div className="p-4 bg-gray-900 rounded-lg">
+    <div
+      key={damageKey}
+      className="p-4 bg-gray-900 rounded-lg"
+      style={damageFlash > 0 ? {
+        animation: `damage-shake ${0.3 + (damageFlash / 600) * 0.4}s ease-out`,
+      } : undefined}
+    >
       <input
         ref={inputRef}
         type="text"

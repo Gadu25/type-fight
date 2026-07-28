@@ -54,6 +54,8 @@ export default function RoomPage() {
   const [copied, setCopied] = useState<boolean>(false)
   const [isRoomFull, setIsRoomFull] = useState<boolean>(false)
   const [results, setResults] = useState<Array<{ player_id: string; name: string; wpm: number; accuracy: number; position: number }> | null>(null)
+  const [playerDamageFlash, setPlayerDamageFlash] = useState<number>(0)
+  const [opponentDamageFlash, setOpponentDamageFlash] = useState<number>(0)
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -154,6 +156,8 @@ export default function RoomPage() {
           totalCorrectCharsRef.current = 0
           totalPhraseLengthRef.current = 0
           gameStartTimeRef.current = 0
+          setPlayerDamageFlash(0)
+          setOpponentDamageFlash(0)
 
           if (message.host_id) {
             setHostId(message.host_id)
@@ -178,6 +182,8 @@ export default function RoomPage() {
         if (message.hp_update) {
           if (message.hp_update.playerID === playerId) {
             setPlayerHP(message.hp_update.hp)
+            setPlayerDamageFlash(message.hp_update.damage)
+            setTimeout(() => setPlayerDamageFlash(0), 500)
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(message.hp_update.attacker)
@@ -192,10 +198,12 @@ export default function RoomPage() {
                 accuracy,
                 timestamp: Date.now(),
               })
-              setTimeout(() => setGameState('finished'), 600)
+              setTimeout(() => setGameState('finished'), 300)
             }
           } else {
             setOpponentHP(message.hp_update.hp)
+            setOpponentDamageFlash(message.hp_update.damage)
+            setTimeout(() => setOpponentDamageFlash(0), 500)
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(playerId || '')
@@ -258,6 +266,8 @@ export default function RoomPage() {
         totalCorrectCharsRef.current = 0
         totalPhraseLengthRef.current = 0
         gameStartTimeRef.current = 0
+        setPlayerDamageFlash(0)
+        setOpponentDamageFlash(0)
         break
 
       case 'error':
@@ -457,23 +467,37 @@ export default function RoomPage() {
               <div className={gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <HealthBar
-                      name={currentPlayer?.name || 'You'}
-                      hp={playerHP}
-                      maxHp={1000}
-                    />
+                    <div className="w-full"
+                      style={playerDamageFlash > 0 ? {
+                        animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
+                      } : undefined}
+                    >
+                      <HealthBar
+                        name={currentPlayer?.name || 'You'}
+                        hp={playerHP}
+                        maxHp={1000}
+                      />
+                    </div>
                     <BattleTimer timeLeft={timeLeft} />
-                    <HealthBar
-                      name={opponentPlayer?.name || 'Opponent'}
-                      hp={opponentHP}
-                      maxHp={1000}
-                    />
+                    <div
+                      className="w-full"
+                      style={opponentDamageFlash > 0 ? {
+                        animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
+                      } : undefined}
+                    >
+                      <HealthBar
+                        name={opponentPlayer?.name || 'Opponent'}
+                        hp={opponentHP}
+                        maxHp={1000}
+                      />
+                    </div>
                   </div>
 
                   {currentPhrase && (
                     <TypingArea
                       phrase={currentPhrase}
                       onComplete={handleAttackComplete}
+                      damageFlash={playerDamageFlash}
                     />
                   )}
 
@@ -482,6 +506,10 @@ export default function RoomPage() {
                       Attack: {currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)} ({currentDamage} dmg)
                     </div>
                   )}
+                  <div className="flex gap-4">
+                    <span>opponentDamageFlash, {opponentDamageFlash}</span>
+                    <span>playerDamageFlash, {playerDamageFlash}</span>
+                  </div>
                 </div>
               </div>
             )}

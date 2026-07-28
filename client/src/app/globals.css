@@ -36,6 +36,19 @@
   animation: countdown-pop 800ms ease-out both;
 }
 
+@keyframes damage-shake {
+  0%, 100% { transform: translateX(0); filter: blur(0); }
+  10% { transform: translateX(-8px); filter: blur(2px); }
+  20% { transform: translateX(8px); filter: blur(2px); }
+  30% { transform: translateX(-6px); filter: blur(1.5px); }
+  40% { transform: translateX(6px); filter: blur(1.5px); }
+  50% { transform: translateX(-4px); filter: blur(1px); }
+  60% { transform: translateX(4px); filter: blur(1px); }
+  70% { transform: translateX(-2px); filter: blur(0.5px); }
+  80% { transform: translateX(2px); filter: blur(0.5px); }
+  90% { transform: translateX(-1px); filter: blur(0); }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
