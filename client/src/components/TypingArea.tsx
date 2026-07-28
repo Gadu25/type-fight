@@ -35,6 +35,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
   const positionRef = useRef(0)
   const errorsRef = useRef<Set<number>>(new Set())
   const correctCountRef = useRef(0)
+  const totalKeystrokesRef = useRef(0)
   const damageKeyRef = useRef(0)
   const [damageKey, setDamageKey] = useState(0)
   const [animName, setAnimName] = useState('')
@@ -45,6 +46,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
     positionRef.current = 0
     errorsRef.current = new Set()
     correctCountRef.current = 0
+    totalKeystrokesRef.current = 0
   }, [phrase])
 
   useEffect(() => {
@@ -76,22 +78,12 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
     if (e.key === 'Backspace') {
       e.preventDefault()
       if (errs.has(pos)) {
-        const next = new Set(errs)
-        next.delete(pos)
-        errorsRef.current = next
-        setErrors(next)
+        return
       } else if (pos > 0) {
         const newPos = pos - 1
         positionRef.current = newPos
         setPosition(newPos)
-        if (!errs.has(newPos)) {
-          correctCountRef.current -= 1
-        } else {
-          const next = new Set(errs)
-          next.delete(newPos)
-          errorsRef.current = next
-          setErrors(next)
-        }
+        correctCountRef.current -= 1
       }
       return
     }
@@ -103,13 +95,15 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
       positionRef.current = newPos
       setPosition(prev => prev + 1)
       correctCountRef.current += 1
+      totalKeystrokesRef.current += 1
       if (newPos === phrase.length) {
-        onComplete({ correct: correctCountRef.current, total: phrase.length })
+        onComplete({ correct: correctCountRef.current, total: totalKeystrokesRef.current })
       }
     } else {
       const next = new Set(errs).add(pos)
       errorsRef.current = next
       setErrors(next)
+      totalKeystrokesRef.current += 1
     }
   }, [phrase, disabled, onComplete])
 
