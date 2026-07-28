@@ -24,12 +24,12 @@ describe('TypingArea', () => {
     expect(chars[0]).toHaveClass('text-red-500')
   })
 
-  it('allows backspace to correct error', () => {
+  it('does not allow backspace to clear error', () => {
     render(<TypingArea phrase="Hi" onComplete={vi.fn()} />)
     fireEvent.keyDown(document, { key: 'X' })
     fireEvent.keyDown(document, { key: 'Backspace' })
     const chars = screen.getAllByRole('span')
-    expect(chars[0]).toHaveClass('text-gray-500')
+    expect(chars[0]).toHaveClass('text-red-500')
   })
 
   it('calls onComplete when phrase finished', () => {

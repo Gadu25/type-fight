@@ -39,6 +39,7 @@ export type ServerMessage =
   | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }
   | { type: 'player_defeated'; player_defeated: { playerID: string } }
   | { type: 'battle_over'; battle_over: { winner: string; reason: string } }
+  | { type: 'player_left'; player_left: { playerID: string; new_host_id?: string; players: { id: string; name: string }[] } }
 
 export type MessageHandler = (message: ServerMessage) => void
 

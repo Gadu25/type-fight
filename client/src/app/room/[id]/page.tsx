@@ -63,12 +63,17 @@ export default function RoomPage() {
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {})
   const playersRef = useRef<Player[]>([])
   const totalCorrectCharsRef = useRef<number>(0)
-  const totalPhraseLengthRef = useRef<number>(0)
+  const totalKeystrokesRef = useRef<number>(0)
   const gameStartTimeRef = useRef<number>(0)
+  const gameStateRef = useRef<GameState>('lobby')
 
   useEffect(() => {
     playersRef.current = players
   }, [players])
+
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
 
   const handleJoinMessage = useCallback(() => {
     const account = getAccount()
@@ -88,7 +93,17 @@ export default function RoomPage() {
     }
 
     setPlayerId(effectivePlayerId)
-    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg), effectivePlayerId || undefined, handleJoinMessage)
+    const ws = createWebSocket(
+      roomID,
+      (msg) => handleMessageRef.current(msg),
+      effectivePlayerId || undefined,
+      handleJoinMessage,
+      () => {
+        if (gameStateRef.current === 'playing') {
+          setToastMessage('Connection lost')
+        }
+      },
+    )
     wsRef.current = ws
 
     return () => {
@@ -154,7 +169,7 @@ export default function RoomPage() {
           setPlayAgainRequested(false)
           gameOverProcessedRef.current = false
           totalCorrectCharsRef.current = 0
-          totalPhraseLengthRef.current = 0
+          totalKeystrokesRef.current = 0
           gameStartTimeRef.current = 0
           setPlayerDamageFlash(0)
           setOpponentDamageFlash(0)
@@ -190,7 +205,7 @@ export default function RoomPage() {
               const opponent = playersRef.current.find(p => p.id === message.hp_update!.attacker)
               const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
               const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
-              const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+              const accuracy = totalKeystrokesRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalKeystrokesRef.current) * 100) : 0
               updateMatchHistory({
                 opponentName: opponent?.name || 'Opponent',
                 winner: false,
@@ -210,7 +225,7 @@ export default function RoomPage() {
               const opponent = playersRef.current.find(p => p.id === message.hp_update!.playerID)
               const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
               const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
-              const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+              const accuracy = totalKeystrokesRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalKeystrokesRef.current) * 100) : 0
               updateMatchHistory({
                 opponentName: opponent?.name || 'Opponent',
                 winner: true,
@@ -220,6 +235,25 @@ export default function RoomPage() {
               })
               setTimeout(() => setGameState('finished'), 600)
             }
+          }
+        }
+        break
+
+      case 'player_left':
+        if (message.player_left) {
+          setPlayers(message.player_left.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            ready: false,
+            isHost: message.player_left!.new_host_id ? p.id === message.player_left!.new_host_id : false,
+            hp: currentPlayer?.hp || 1000,
+            isAlive: true,
+          })))
+          if (message.player_left.new_host_id) {
+            setHostId(message.player_left.new_host_id)
+          }
+          if (gameState === 'playing') {
+            setToastMessage('Opponent disconnected')
           }
         }
         break
@@ -264,7 +298,7 @@ export default function RoomPage() {
         setResults(null)
         gameOverProcessedRef.current = false
         totalCorrectCharsRef.current = 0
-        totalPhraseLengthRef.current = 0
+        totalKeystrokesRef.current = 0
         gameStartTimeRef.current = 0
         setPlayerDamageFlash(0)
         setOpponentDamageFlash(0)
@@ -311,7 +345,7 @@ export default function RoomPage() {
       const opponent = playersRef.current.find(p => p.id !== playerId)
       const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
       const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
-      const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+      const accuracy = totalKeystrokesRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalKeystrokesRef.current) * 100) : 0
       updateMatchHistory({
         opponentName: opponent?.name || 'Opponent',
         winner: true,
@@ -324,7 +358,7 @@ export default function RoomPage() {
       setWinner(attacker?.id || '')
       const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
       const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
-      const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+      const accuracy = totalKeystrokesRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalKeystrokesRef.current) * 100) : 0
       updateMatchHistory({
         opponentName: attacker?.name || 'Opponent',
         winner: false,
@@ -346,7 +380,7 @@ export default function RoomPage() {
 
   const handleAttackComplete = useCallback((result: { correct: number; total: number }) => {
     totalCorrectCharsRef.current += result.correct
-    totalPhraseLengthRef.current += result.total
+    totalKeystrokesRef.current += result.total
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'attack_complete', attack_complete: result })
     }
@@ -378,7 +412,7 @@ export default function RoomPage() {
     setTimeLeft(BATTLE_TIME_LIMIT)
     gameStartTimeRef.current = Date.now()
     totalCorrectCharsRef.current = 0
-    totalPhraseLengthRef.current = 0
+    totalKeystrokesRef.current = 0
   }, [])
 
   const handleCopyRoomCode = useCallback(() => {

@@ -478,6 +478,67 @@ func (h *Handler) handleSwitchAttack(conn Connection, roomID, playerID string, d
 	conn.WriteMessage(1, respData)
 }
 
+func (h *Handler) HandleDisconnect(roomID, playerID string) {
+	result, err := h.roomManager.RemovePlayer(roomID, playerID)
+	if err != nil {
+		log.Printf("HandleDisconnect: %v", err)
+		return
+	}
+
+	if result.RoomEmpty {
+		return
+	}
+
+	room := h.roomManager.GetRoom(roomID)
+	if room == nil {
+		return
+	}
+
+	players := make([]PlayerInfo, 0, len(result.Players))
+	for _, p := range result.Players {
+		players = append(players, PlayerInfo{ID: p.ID, Name: p.Name})
+	}
+	leftMsg := CombatServerMessage{
+		Type: "player_left",
+		PlayerLeft: &PlayerLeftPayload{
+			PlayerID:  playerID,
+			NewHostID: result.NewHostID,
+			Players:   players,
+		},
+	}
+	data, _ := json.Marshal(leftMsg)
+	h.hub.BroadcastToRoom(roomID, data)
+
+	if room.Status == "playing" {
+		var winnerID string
+		for id := range room.Players {
+			winnerID = id
+			break
+		}
+
+		defeatedMsg := CombatServerMessage{
+			Type: "player_defeated",
+			PlayerDefeated: &PlayerDefeatedPayload{
+				PlayerID: playerID,
+			},
+		}
+		defData, _ := json.Marshal(defeatedMsg)
+		h.hub.BroadcastToRoom(roomID, defData)
+
+		battleOver := CombatServerMessage{
+			Type: "battle_over",
+			BattleOver: &BattleOverPayload{
+				Winner: winnerID,
+				Reason: "forfeit",
+			},
+		}
+		boData, _ := json.Marshal(battleOver)
+		h.hub.BroadcastToRoom(roomID, boData)
+
+		h.roomManager.SetRoomStatus(roomID, "finished")
+	}
+}
+
 func (h *Handler) sendError(conn Connection, message string) {
 	response := ServerMessage{
 		Type: "error",
