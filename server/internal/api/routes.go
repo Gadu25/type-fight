@@ -107,6 +107,7 @@ func (r *Routes) handleWebSocket(w http.ResponseWriter, req *http.Request) {
 func (r *Routes) handleWebSocketConnection(conn *websocket.Conn, roomID, playerID string) {
 	defer func() {
 		r.hub.Unregister(&ws.Client{RoomID: roomID, PlayerID: playerID})
+		r.handler.HandleDisconnect(roomID, playerID)
 		conn.Close()
 	}()
 

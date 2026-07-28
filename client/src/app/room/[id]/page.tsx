@@ -65,10 +65,15 @@ export default function RoomPage() {
   const totalCorrectCharsRef = useRef<number>(0)
   const totalKeystrokesRef = useRef<number>(0)
   const gameStartTimeRef = useRef<number>(0)
+  const gameStateRef = useRef<GameState>('lobby')
 
   useEffect(() => {
     playersRef.current = players
   }, [players])
+
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
 
   const handleJoinMessage = useCallback(() => {
     const account = getAccount()
@@ -88,7 +93,17 @@ export default function RoomPage() {
     }
 
     setPlayerId(effectivePlayerId)
-    const ws = createWebSocket(roomID, (msg) => handleMessageRef.current(msg), effectivePlayerId || undefined, handleJoinMessage)
+    const ws = createWebSocket(
+      roomID,
+      (msg) => handleMessageRef.current(msg),
+      effectivePlayerId || undefined,
+      handleJoinMessage,
+      () => {
+        if (gameStateRef.current === 'playing') {
+          setToastMessage('Connection lost')
+        }
+      },
+    )
     wsRef.current = ws
 
     return () => {
@@ -220,6 +235,25 @@ export default function RoomPage() {
               })
               setTimeout(() => setGameState('finished'), 600)
             }
+          }
+        }
+        break
+
+      case 'player_left':
+        if (message.player_left) {
+          setPlayers(message.player_left.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            ready: false,
+            isHost: message.player_left!.new_host_id ? p.id === message.player_left!.new_host_id : false,
+            hp: currentPlayer?.hp || 1000,
+            isAlive: true,
+          })))
+          if (message.player_left.new_host_id) {
+            setHostId(message.player_left.new_host_id)
+          }
+          if (gameState === 'playing') {
+            setToastMessage('Opponent disconnected')
           }
         }
         break

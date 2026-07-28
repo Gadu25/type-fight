@@ -107,6 +107,58 @@ func (rm *RoomManager) JoinRoom(roomID, playerID, playerName string) error {
 	return nil
 }
 
+type RemovePlayerResult struct {
+	NewHostID string
+	Players   []PlayerInfo
+	RoomEmpty bool
+}
+
+func (rm *RoomManager) RemovePlayer(roomID, playerID string) (*RemovePlayerResult, error) {
+	rm.mu.RLock()
+	room, exists := rm.rooms[roomID]
+	rm.mu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("room not found")
+	}
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	if _, exists := room.Players[playerID]; !exists {
+		return nil, fmt.Errorf("player not in room")
+	}
+
+	delete(room.Players, playerID)
+
+	if len(room.Players) == 0 {
+		return &RemovePlayerResult{RoomEmpty: true}, nil
+	}
+
+	var newHostID string
+	if room.HostID == playerID {
+		for id := range room.Players {
+			newHostID = id
+			break
+		}
+		room.HostID = newHostID
+	}
+
+	players := make([]PlayerInfo, 0, len(room.Players))
+	for _, p := range room.Players {
+		players = append(players, PlayerInfo{
+			ID:   p.ID,
+			Name: p.Name,
+		})
+	}
+
+	return &RemovePlayerResult{
+		NewHostID: newHostID,
+		Players:   players,
+		RoomEmpty: false,
+	}, nil
+}
+
 func (rm *RoomManager) StartGame(roomID, playerID string) error {
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
