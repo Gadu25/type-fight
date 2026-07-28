@@ -158,7 +158,7 @@ export default function ProfilePanel({ isOpen, onClose }: ProfilePanelProps) {
                           </div>
                           <div className="flex items-center gap-4 text-xs text-gray-400">
                             <span>{match.wpm.toFixed(1)} WPM</span>
-                            <span>{(match.accuracy * 100).toFixed(1)}%</span>
+                            <span>{match.accuracy.toFixed(1)}%</span>
                             <span>{formatDate(match.timestamp)}</span>
                           </div>
                         </div>

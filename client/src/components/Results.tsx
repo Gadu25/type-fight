@@ -52,7 +52,7 @@ export default function Results({
               </div>
               <div>
                 <span className="text-gray-400">Accuracy</span>
-                <p className="text-xl font-bold">{(result.accuracy * 100).toFixed(1)}%</p>
+                <p className="text-xl font-bold">{result.accuracy.toFixed(1)}%</p>
               </div>
             </div>
           </div>

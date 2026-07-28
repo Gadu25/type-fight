@@ -15,7 +15,7 @@ import Toast from '@/components/Toast'
 import AttackSelector from '@/components/AttackSelector'
 import HealthBar from '@/components/HealthBar'
 import BattleTimer from '@/components/BattleTimer'
-import { getAccount, createAccount } from '@/lib/account'
+import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -59,6 +59,14 @@ export default function RoomPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const gameOverProcessedRef = useRef<boolean>(false)
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {})
+  const playersRef = useRef<Player[]>([])
+  const totalCorrectCharsRef = useRef<number>(0)
+  const totalPhraseLengthRef = useRef<number>(0)
+  const gameStartTimeRef = useRef<number>(0)
+
+  useEffect(() => {
+    playersRef.current = players
+  }, [players])
 
   const handleJoinMessage = useCallback(() => {
     const account = getAccount()
@@ -143,13 +151,15 @@ export default function RoomPage() {
           setOpponentReady(false)
           setPlayAgainRequested(false)
           gameOverProcessedRef.current = false
+          totalCorrectCharsRef.current = 0
+          totalPhraseLengthRef.current = 0
+          gameStartTimeRef.current = 0
 
-          if ((message as any).host_id) {
-            setHostId((message as any).host_id)
+          if (message.host_id) {
+            setHostId(message.host_id)
           }
 
           const me = battlePlayers.find(p => p.id === playerId)
-          const opponent = battlePlayers.find(p => p.id !== playerId)
           if (!me && battlePlayers.length > 0) {
             setPlayerId(battlePlayers[0].id)
           }
@@ -171,14 +181,36 @@ export default function RoomPage() {
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(message.hp_update.attacker)
-              setGameState('finished')
+              const opponent = playersRef.current.find(p => p.id === message.hp_update!.attacker)
+              const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
+              const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
+              const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+              updateMatchHistory({
+                opponentName: opponent?.name || 'Opponent',
+                winner: false,
+                wpm,
+                accuracy,
+                timestamp: Date.now(),
+              })
+              setTimeout(() => setGameState('finished'), 600)
             }
           } else {
             setOpponentHP(message.hp_update.hp)
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(playerId || '')
-              setGameState('finished')
+              const opponent = playersRef.current.find(p => p.id === message.hp_update!.playerID)
+              const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
+              const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
+              const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+              updateMatchHistory({
+                opponentName: opponent?.name || 'Opponent',
+                winner: true,
+                wpm,
+                accuracy,
+                timestamp: Date.now(),
+              })
+              setTimeout(() => setGameState('finished'), 600)
             }
           }
         }
@@ -191,7 +223,7 @@ export default function RoomPage() {
         if (message.battle_over && !gameOverProcessedRef.current) {
           gameOverProcessedRef.current = true
           setWinner(message.battle_over.winner)
-          setGameState('finished')
+          setTimeout(() => setGameState('finished'), 600)
         }
         break
 
@@ -223,6 +255,9 @@ export default function RoomPage() {
         setWinner('')
         setResults(null)
         gameOverProcessedRef.current = false
+        totalCorrectCharsRef.current = 0
+        totalPhraseLengthRef.current = 0
+        gameStartTimeRef.current = 0
         break
 
       case 'error':
@@ -258,6 +293,41 @@ export default function RoomPage() {
     }
   }, [gameState])
 
+  useEffect(() => {
+    if (timeLeft > 0 || gameState !== 'playing' || gameOverProcessedRef.current) return
+    gameOverProcessedRef.current = true
+    if (playerHP > opponentHP) {
+      setWinner(playerId || '')
+      const opponent = playersRef.current.find(p => p.id !== playerId)
+      const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
+      const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
+      const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+      updateMatchHistory({
+        opponentName: opponent?.name || 'Opponent',
+        winner: true,
+        wpm,
+        accuracy,
+        timestamp: Date.now(),
+      })
+    } else if (opponentHP > playerHP) {
+      const attacker = playersRef.current.find(p => p.id !== playerId)
+      setWinner(attacker?.id || '')
+      const elapsed = (Date.now() - gameStartTimeRef.current) / 60000
+      const wpm = elapsed > 0 ? Math.round(totalCorrectCharsRef.current / 5 / elapsed) : 0
+      const accuracy = totalPhraseLengthRef.current > 0 ? Math.round((totalCorrectCharsRef.current / totalPhraseLengthRef.current) * 100) : 0
+      updateMatchHistory({
+        opponentName: attacker?.name || 'Opponent',
+        winner: false,
+        wpm,
+        accuracy,
+        timestamp: Date.now(),
+      })
+    } else {
+      setWinner('')
+    }
+    setTimeout(() => setGameState('finished'), 600)
+  }, [timeLeft, gameState, playerId, playerHP, opponentHP])
+
   const handleSelectAttack = useCallback((tier: 'quick' | 'normal' | 'heavy' | 'ultimate') => {
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
@@ -265,6 +335,8 @@ export default function RoomPage() {
   }, [])
 
   const handleAttackComplete = useCallback((result: { correct: number; total: number }) => {
+    totalCorrectCharsRef.current += result.correct
+    totalPhraseLengthRef.current += result.total
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'attack_complete', attack_complete: result })
     }
@@ -294,6 +366,9 @@ export default function RoomPage() {
   const handleCountdownComplete = useCallback(() => {
     setGameState('playing')
     setTimeLeft(BATTLE_TIME_LIMIT)
+    gameStartTimeRef.current = Date.now()
+    totalCorrectCharsRef.current = 0
+    totalPhraseLengthRef.current = 0
   }, [])
 
   const handleCopyRoomCode = useCallback(() => {
@@ -343,21 +418,23 @@ export default function RoomPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <PlayerList
-              players={players}
-              hostId={hostId}
-              currentPlayerId={playerId}
-              gameStatus={gameState}
-              onStartGame={handleStartGame}
-              onReady={handleReady}
-              isRoomFull={isRoomFull}
-              isReady={isReady}
-              opponentReady={opponentReady}
-            />
-          </div>
+          {(gameState === 'lobby' || gameState === 'finished') && (
+            <div className="lg:col-span-1">
+              <PlayerList
+                players={players}
+                hostId={hostId}
+                currentPlayerId={playerId}
+                gameStatus={gameState}
+                onStartGame={handleStartGame}
+                onReady={handleReady}
+                isRoomFull={isRoomFull}
+                isReady={isReady}
+                opponentReady={opponentReady}
+              />
+            </div>
+          )}
 
-          <div className="lg:col-span-2">
+          <div className={gameState === 'lobby' || gameState === 'finished' ? 'lg:col-span-2' : 'lg:col-span-3'}>
             {gameState === 'lobby' && (
               <div className="bg-gray-800 rounded-lg p-6 text-center">
                 {isRoomFull ? (
@@ -425,13 +502,15 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-center">
-          <AttackSelector
-            onSelect={handleSelectAttack}
-            currentAttack={currentAttack}
-            disabled={gameState !== 'playing'}
-          />
-        </div>
+        {(gameState === 'countdown' || gameState === 'playing') && (
+          <div className="mt-6 flex justify-center">
+            <AttackSelector
+              onSelect={handleSelectAttack}
+              currentAttack={currentAttack}
+              disabled={gameState !== 'playing'}
+            />
+          </div>
+        )}
       </div>
 
       <ProfilePanel isOpen={showProfile} onClose={() => setShowProfile(false)} />

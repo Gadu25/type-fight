@@ -16,7 +16,7 @@ export default function BattleTimer({ timeLeft }: BattleTimerProps) {
   }
 
   return (
-    <div className={`text-2xl font-mono font-bold ${getColorClass()}`}>
+    <div className={`text-xl font-mono font-bold px-2 ${getColorClass()}`}>
       {display}
     </div>
   )
