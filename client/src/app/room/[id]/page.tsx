@@ -608,7 +608,7 @@ export default function RoomPage() {
                           key={n.id}
                           className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-green-400"
                         >
-                          +{n.damage}
+                          -{n.damage}
                         </div>
                       ))}
                     </div>
