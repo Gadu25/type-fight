@@ -587,14 +587,14 @@ export default function RoomPage() {
                         hp={playerHP}
                         maxHp={1000}
                       />
-                      {comboStreak > 1 && (
-                        <div
-                          key={comboStreak}
-                          className="absolute -top-5 left-0 text-sm font-bold text-yellow-400 animate-streak-pop"
-                        >
-                          🔥 {comboStreak}x
-                        </div>
-                      )}
+                      {/* {comboStreak > 1 && ( */}
+                      {/*   <div */}
+                      {/*     key={comboStreak} */}
+                      {/*     className="absolute -top-5 left-0 text-sm font-bold text-yellow-400 animate-streak-pop" */}
+                      {/*   > */}
+                      {/*     🔥 {comboStreak}x */}
+                      {/*   </div> */}
+                      {/* )} */}
                       {currentAttack && (
                         <div className="absolute -top-6 left-0 text-sm font-bold"
                           style={{
