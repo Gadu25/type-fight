@@ -68,6 +68,7 @@ export default function RoomPage() {
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
   const floatIdRef = useRef(0)
+  const [opponentAttack, setOpponentAttack] = useState<string>('')
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -188,6 +189,7 @@ export default function RoomPage() {
           setPlayerDamageFlash(0)
           setOpponentDamageFlash(0)
           setComboStreak(0)
+          setOpponentAttack('')
           setFloatNumbers([])
 
           if (message.host_id) {
@@ -206,6 +208,12 @@ export default function RoomPage() {
           phrasePoolsRef.current = message.phrase_pools
         }
         break
+
+      case 'opponent_attack':
+          if (message.opponent_attack?.playerID !== playerId) {
+              setOpponentAttack(message.opponent_attack?.tier || '')
+          }
+          break
 
       case 'hp_update':
         if (message.hp_update) {
@@ -315,6 +323,7 @@ export default function RoomPage() {
         setOpponentReady(false)
         setPlayAgainRequested(false)
         setCurrentAttack('')
+        setOpponentAttack('')
         setCurrentPhrase('')
         setPlayerHP(1000)
         setOpponentHP(1000)
@@ -582,6 +591,20 @@ export default function RoomPage() {
                           🔥 {comboStreak}x
                         </div>
                       )}
+                      {currentAttack && (
+                        <div className="absolute -top-6 left-0 text-sm font-bold"
+                          style={{
+                            color: currentAttack === 'quick' ? '#facc15' :
+                                   currentAttack === 'normal' ? '#9ca3af' :
+                                   currentAttack === 'heavy' ? '#a855f7' : '#ef4444'
+                          }}
+                        >
+                          {currentAttack === 'quick' ? '⚡' :
+                           currentAttack === 'normal' ? '⚔️' :
+                           currentAttack === 'heavy' ? '🛡️' : '💥'}
+                          {' '}{currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)}
+                        </div>
+                      )}
                       {floatNumbers.filter(n => n.side === 'player').map(n => (
                         <div
                           key={n.id}
@@ -603,6 +626,20 @@ export default function RoomPage() {
                         hp={opponentHP}
                         maxHp={1000}
                       />
+                      {opponentAttack && (
+                        <div className="absolute -top-6 right-0 text-sm font-bold"
+                          style={{
+                            color: opponentAttack === 'quick' ? '#facc15' :
+                                   opponentAttack === 'normal' ? '#9ca3af' :
+                                   opponentAttack === 'heavy' ? '#a855f7' : '#ef4444'
+                          }}
+                        >
+                          {opponentAttack === 'quick' ? '⚡' :
+                           opponentAttack === 'normal' ? '⚔️' :
+                           opponentAttack === 'heavy' ? '🛡️' : '💥'}
+                          {' '}{opponentAttack.charAt(0).toUpperCase() + opponentAttack.slice(1)}
+                        </div>
+                      )}
                       {floatNumbers.filter(n => n.side === 'opponent').map(n => (
                         <div
                           key={n.id}
