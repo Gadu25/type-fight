@@ -33,6 +33,7 @@ type ServerMessage struct {
 	OpponentName   string           `json:"opponent_name,omitempty"`
 	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
 	HostID         string           `json:"host_id,omitempty"`
+	PhrasePools    map[string][]string `json:"phrase_pools,omitempty"`
 }
 
 type PlayerInfo struct {

@@ -51,3 +51,13 @@ func GetRandomPhrase(tier string) string {
 func GetRandomText() string {
 	return GetRandomPhrase("normal")
 }
+
+func GetPhrasePools() map[string][]string {
+	pools := make(map[string][]string)
+	for tier, phrases := range phrasePools {
+		pool := make([]string, len(phrases))
+		copy(pool, phrases)
+		pools[tier] = pool
+	}
+	return pools
+}
