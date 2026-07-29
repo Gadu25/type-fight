@@ -24,7 +24,7 @@ export default function HealthBar({ name, hp, maxHp }: HealthBarProps) {
       <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
         <div
           role="progressbar"
-          className={`h-full ${getBarColor()} transition-all duration-300`}
+          className={`h-full ${getBarColor()} transition-all duration-500 ease-out`}
           style={{ width: `${percentage}%` }}
         />
       </div>

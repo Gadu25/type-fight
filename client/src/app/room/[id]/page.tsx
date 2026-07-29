@@ -64,6 +64,10 @@ export default function RoomPage() {
   const [results, setResults] = useState<Array<{ player_id: string; name: string; wpm: number; accuracy: number; position: number }> | null>(null)
   const [playerDamageFlash, setPlayerDamageFlash] = useState<number>(0)
   const [opponentDamageFlash, setOpponentDamageFlash] = useState<number>(0)
+  const [comboStreak, setComboStreak] = useState(0)
+  const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
+  const floatIdRef = useRef(0)
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -118,6 +122,7 @@ export default function RoomPage() {
     return () => {
       ws.close()
       if (timerRef.current) clearInterval(timerRef.current)
+      if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current)
     }
   }, [roomID, handleJoinMessage])
 
@@ -182,6 +187,8 @@ export default function RoomPage() {
           gameStartTimeRef.current = 0
           setPlayerDamageFlash(0)
           setOpponentDamageFlash(0)
+          setComboStreak(0)
+          setFloatNumbers([])
 
           if (message.host_id) {
             setHostId(message.host_id)
@@ -206,6 +213,11 @@ export default function RoomPage() {
             setPlayerHP(message.hp_update.hp)
             setPlayerDamageFlash(message.hp_update.damage)
             setTimeout(() => setPlayerDamageFlash(0), 500)
+            {
+              const newId = ++floatIdRef.current
+              setFloatNumbers(prev => [...prev, {id: newId, damage: message.hp_update.damage, side: 'player'}])
+              setTimeout(() => setFloatNumbers(prev => prev.filter(n => n.id !== newId)), 1000)
+            }
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(message.hp_update.attacker)
@@ -226,6 +238,11 @@ export default function RoomPage() {
             setOpponentHP(message.hp_update.hp)
             setOpponentDamageFlash(message.hp_update.damage)
             setTimeout(() => setOpponentDamageFlash(0), 500)
+            {
+              const newId = ++floatIdRef.current
+              setFloatNumbers(prev => [...prev, {id: newId, damage: message.hp_update.damage, side: 'opponent'}])
+              setTimeout(() => setFloatNumbers(prev => prev.filter(n => n.id !== newId)), 1000)
+            }
             if (message.hp_update.hp <= 0 && !gameOverProcessedRef.current) {
               gameOverProcessedRef.current = true
               setWinner(playerId || '')
@@ -309,6 +326,8 @@ export default function RoomPage() {
         gameStartTimeRef.current = 0
         setPlayerDamageFlash(0)
         setOpponentDamageFlash(0)
+        setComboStreak(0)
+        setFloatNumbers([])
         break
 
       case 'error':
@@ -393,6 +412,13 @@ export default function RoomPage() {
   const handleAttackComplete = useCallback((result: { correct: number; total: number }) => {
     totalCorrectCharsRef.current += result.correct
     totalKeystrokesRef.current += result.total
+    if (result.correct === result.total) {
+      setComboStreak(prev => prev + 1)
+      if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current)
+      comboTimeoutRef.current = setTimeout(() => setComboStreak(0), 5000)
+    } else {
+      setComboStreak(0)
+    }
     if (wsRef.current && currentAttack) {
       sendMessage(wsRef.current, {
         type: 'attack_complete',
@@ -458,6 +484,23 @@ export default function RoomPage() {
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
+      <style>{`
+        @keyframes float-up {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-30px); }
+        }
+        .animate-float-up {
+          animation: float-up 1s ease-out forwards;
+        }
+        @keyframes streak-pop {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.4); }
+          100% { transform: scale(1); }
+        }
+        .animate-streak-pop {
+          animation: streak-pop 0.3s ease-out;
+        }
+      `}</style>
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-2">
@@ -521,7 +564,7 @@ export default function RoomPage() {
               <div className={gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-full"
+                    <div className="w-full relative"
                       style={playerDamageFlash > 0 ? {
                         animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
                       } : undefined}
@@ -531,10 +574,26 @@ export default function RoomPage() {
                         hp={playerHP}
                         maxHp={1000}
                       />
+                      {comboStreak > 1 && (
+                        <div
+                          key={comboStreak}
+                          className="absolute -top-5 left-0 text-sm font-bold text-yellow-400 animate-streak-pop"
+                        >
+                          🔥 {comboStreak}x
+                        </div>
+                      )}
+                      {floatNumbers.filter(n => n.side === 'player').map(n => (
+                        <div
+                          key={n.id}
+                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-red-400"
+                        >
+                          -{n.damage}
+                        </div>
+                      ))}
                     </div>
                     <BattleTimer timeLeft={timeLeft} />
                     <div
-                      className="w-full"
+                      className="w-full relative"
                       style={opponentDamageFlash > 0 ? {
                         animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
                       } : undefined}
@@ -544,6 +603,14 @@ export default function RoomPage() {
                         hp={opponentHP}
                         maxHp={1000}
                       />
+                      {floatNumbers.filter(n => n.side === 'opponent').map(n => (
+                        <div
+                          key={n.id}
+                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-green-400"
+                        >
+                          +{n.damage}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
