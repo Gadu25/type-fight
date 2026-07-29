@@ -488,10 +488,6 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 			continue
 		}
 		player.CurrentAttack = tier
-		player.CurrentPhrase = GetRandomPhrase(tier)
-		player.PhraseCorrect = 0
-		player.PhraseTotal = len(player.CurrentPhrase)
-		player.AttackStartTime = time.Now()
 		room.mu.Unlock()
 		return nil
 	}
@@ -505,7 +501,7 @@ type AttackResult struct {
 	Damage     int
 }
 
-func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*AttackResult, error) {
+func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, total int) (*AttackResult, error) {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 	for _, room := range rm.rooms {
@@ -519,9 +515,37 @@ func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*Att
 			room.mu.Unlock()
 			return nil, fmt.Errorf("no active attack")
 		}
-		def := GetAttackDef(attacker.CurrentAttack)
+		if attacker.CurrentAttack != tier {
+			room.mu.Unlock()
+			return nil, fmt.Errorf("attack tier mismatch")
+		}
+
+		def := GetAttackDef(tier)
+		pool := phrasePools[tier]
+		valid := false
+		for _, p := range pool {
+			if p == phrase {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			room.mu.Unlock()
+			return nil, fmt.Errorf("invalid phrase for tier %s", tier)
+		}
+		if correct < 1 || correct > len(phrase) {
+			correct = len(phrase)
+		}
+		if total < correct || total > len(phrase)*3 {
+			total = correct
+		}
+
 		accuracy := CalculateAccuracy(correct, total)
+		if accuracy < 0.25 {
+			accuracy = 0.25
+		}
 		damage := CalculateDamage(def.Damage, accuracy)
+
 		var result *AttackResult
 		for id, p := range room.Players {
 			if id != playerID && p.IsAlive {
@@ -540,9 +564,6 @@ func (rm *RoomManager) CompleteAttack(playerID string, correct, total int) (*Att
 			}
 		}
 		attacker.CurrentAttack = ""
-		attacker.CurrentPhrase = ""
-		attacker.PhraseCorrect = 0
-		attacker.PhraseTotal = 0
 		room.mu.Unlock()
 		if result == nil {
 			return nil, fmt.Errorf("no valid opponent found")
@@ -567,10 +588,6 @@ func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 			continue
 		}
 		player.CurrentAttack = newTier
-		player.CurrentPhrase = GetRandomPhrase(newTier)
-		player.PhraseCorrect = 0
-		player.PhraseTotal = len(player.CurrentPhrase)
-		player.AttackStartTime = time.Now()
 		room.mu.Unlock()
 		return nil
 	}

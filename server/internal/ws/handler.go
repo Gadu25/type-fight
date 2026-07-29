@@ -385,23 +385,6 @@ func (h *Handler) handleSelectAttack(conn Connection, roomID, playerID string, d
 		h.sendError(conn, err.Error())
 		return
 	}
-	room := h.roomManager.GetRoom(roomID)
-	if room == nil {
-		h.sendError(conn, "Room not found")
-		return
-	}
-	player := room.Players[playerID]
-	def := game.GetAttackDef(msg.SelectAttack.Tier)
-	response := CombatServerMessage{
-		Type: "attack_phrase",
-		AttackPhrase: &AttackPhrasePayload{
-			Phrase: player.CurrentPhrase,
-			Tier:   msg.SelectAttack.Tier,
-			Damage: def.Damage,
-		},
-	}
-	respData, _ := json.Marshal(response)
-	conn.WriteMessage(1, respData)
 }
 
 func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string, data []byte) {
@@ -415,7 +398,13 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 		return
 	}
 
-	attackResult, err := h.roomManager.CompleteAttack(playerID, msg.AttackComplete.Correct, msg.AttackComplete.Total)
+	attackResult, err := h.roomManager.CompleteAttack(
+		playerID,
+		msg.AttackComplete.Tier,
+		msg.AttackComplete.Phrase,
+		msg.AttackComplete.Correct,
+		msg.AttackComplete.Total,
+	)
 	if err != nil {
 		h.sendError(conn, err.Error())
 		return
@@ -473,23 +462,6 @@ func (h *Handler) handleSwitchAttack(conn Connection, roomID, playerID string, d
 		h.sendError(conn, err.Error())
 		return
 	}
-	room := h.roomManager.GetRoom(roomID)
-	if room == nil {
-		h.sendError(conn, "Room not found")
-		return
-	}
-	player := room.Players[playerID]
-	def := game.GetAttackDef(msg.SwitchAttack.Tier)
-	response := CombatServerMessage{
-		Type: "attack_phrase",
-		AttackPhrase: &AttackPhrasePayload{
-			Phrase: player.CurrentPhrase,
-			Tier:   msg.SwitchAttack.Tier,
-			Damage: def.Damage,
-		},
-	}
-	respData, _ := json.Marshal(response)
-	conn.WriteMessage(1, respData)
 }
 
 func (h *Handler) HandleDisconnect(roomID, playerID string) {

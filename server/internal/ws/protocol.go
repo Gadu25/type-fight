@@ -66,8 +66,10 @@ type SelectAttackPayload struct {
 }
 
 type AttackCompletePayload struct {
-	Correct int `json:"correct"`
-	Total   int `json:"total"`
+	Tier    string `json:"tier"`
+	Phrase  string `json:"phrase"`
+	Correct int    `json:"correct"`
+	Total   int    `json:"total"`
 }
 
 type SwitchAttackPayload struct {
@@ -83,18 +85,11 @@ type PlayerLeftPayload struct {
 // Combat Server -> Client messages
 type CombatServerMessage struct {
 	Type         string                `json:"type"`
-	AttackPhrase *AttackPhrasePayload  `json:"attack_phrase,omitempty"`
 	HpUpdate     *HpUpdatePayload      `json:"hp_update,omitempty"`
 	PlayerDefeated *PlayerDefeatedPayload `json:"player_defeated,omitempty"`
 	BattleOver   *BattleOverPayload    `json:"battle_over,omitempty"`
 	GameStart    *GameStartPayload     `json:"game_start,omitempty"`
 	PlayerLeft   *PlayerLeftPayload    `json:"player_left,omitempty"`
-}
-
-type AttackPhrasePayload struct {
-	Phrase string `json:"phrase"`
-	Tier   string `json:"tier"`
-	Damage int    `json:"damage"`
 }
 
 type HpUpdatePayload struct {
