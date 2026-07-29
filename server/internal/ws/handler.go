@@ -420,17 +420,30 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 		return
 	}
 
-	hpUpdate := CombatServerMessage{
-		Type: "hp_update",
-		HpUpdate: &HpUpdatePayload{
-			PlayerID: attackResult.OpponentID,
-			HP:       attackResult.NewHP,
-			Attacker: playerID,
-			Damage:   attackResult.Damage,
-		},
+	if attackResult.IsHeal {
+		healUpdate := CombatServerMessage{
+			Type: "heal_update",
+			HealUpdate: &HealUpdatePayload{
+				PlayerID: attackResult.PlayerID,
+				HP:       attackResult.NewHP,
+				Heal:     attackResult.HealAmount,
+			},
+		}
+		healData, _ := json.Marshal(healUpdate)
+		h.hub.BroadcastToRoom(roomID, healData)
+	} else {
+		hpUpdate := CombatServerMessage{
+			Type: "hp_update",
+			HpUpdate: &HpUpdatePayload{
+				PlayerID: attackResult.OpponentID,
+				HP:       attackResult.NewHP,
+				Attacker: playerID,
+				Damage:   attackResult.Damage,
+			},
+		}
+		hpData, _ := json.Marshal(hpUpdate)
+		h.hub.BroadcastToRoom(roomID, hpData)
 	}
-	hpData, _ := json.Marshal(hpUpdate)
-	h.hub.BroadcastToRoom(roomID, hpData)
 
 	winner, defeated := h.roomManager.CheckBattleEnd()
 	if winner != "" && defeated != "" {

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80">
+  <style>
+    @keyframes explode { 0%{r:6;opacity:1} 100%{r:18;opacity:0} }
+    @keyframes pulse { 0%,100%{opacity:0.2} 50%{opacity:0.6} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+    @keyframes beam { 0%,100%{opacity:0.4; stroke-width:2} 50%{opacity:1; stroke-width:4} }
+    .glow { animation: pulse 0.5s ease-in-out infinite; }
+    .orbburst { animation: explode 0.6s ease-out infinite; }
+    .orbcore { animation: pulse 0.3s ease-in-out infinite; }
+    .beams { animation: beam 0.4s ease-in-out infinite; }
+    .c { animation: float 1s ease-in-out infinite; }
+  </style>
+  <!-- Purple glow aura -->
+  <ellipse cx="32" cy="44" rx="28" ry="26" fill="#a855f7" class="glow"/>
+  <g class="c">
+    <!-- Pointy hat brim -->
+    <ellipse cx="32" cy="14" rx="16" ry="4" fill="#7e22ce"/>
+    <polygon points="24,14 40,14 32,0" fill="#9333ea"/>
+    <polygon points="32,4 33,7 36,7 34,9 35,12 32,10 29,12 30,9 28,7 31,7" fill="#fbbf24" opacity="1"/>
+    <!-- Face -->
+    <rect x="24" y="14" width="16" height="14" rx="3" fill="#fde68a"/>
+    <!-- Intense casting eyes -->
+    <rect x="26" y="18" width="5" height="3" fill="#581c87"/>
+    <rect x="33" y="18" width="5" height="3" fill="#581c87"/>
+    <!-- Eye glow -->
+    <rect x="27" y="18" width="3" height="2" fill="#e879f9" opacity="0.8"/>
+    <rect x="34" y="18" width="3" height="2" fill="#e879f9" opacity="0.8"/>
+    <!-- Beard -->
+    <rect x="26" y="26" width="12" height="4" rx="2" fill="#e5e7eb"/>
+    <!-- Neck / upper robe -->
+    <rect x="28" y="28" width="8" height="4" fill="#7e22ce"/>
+    <!-- Robe body -->
+    <rect x="14" y="32" width="36" height="30" rx="2" fill="#9333ea"/>
+    <rect x="30" y="32" width="4" height="30" fill="#7e22ce" opacity="0.5"/>
+    <polygon points="14,62 50,62 56,72 8,72" fill="#7e22ce"/>
+    <!-- Left sleeve raised/casting -->
+    <rect x="4" y="24" width="12" height="18" rx="3" fill="#9333ea"/>
+    <rect x="4" y="40" width="12" height="6" rx="2" fill="#fde68a"/>
+    <!-- Magic sparks from left hand -->
+    <circle cx="8" cy="42" r="3" fill="#e879f9" class="glow"/>
+    <line x1="0" y1="38" x2="8" y2="42" stroke="#e879f9" stroke-width="1.5" class="beams"/>
+    <line x1="2" y1="46" x2="8" y2="42" stroke="#c084fc" stroke-width="1" class="beams"/>
+    <!-- Right sleeve (holding staff extended forward) -->
+    <rect x="44" y="28" width="12" height="14" rx="3" fill="#9333ea"/>
+    <rect x="46" y="40" width="10" height="6" rx="2" fill="#fde68a"/>
+    <!-- Staff (extended forward/horizontal) -->
+    <rect x="44" y="14" width="4" height="44" rx="2" fill="#78350f" transform="rotate(-30 55 40)"/>
+    <!-- Staff orb burst (exploding) -->
+    <circle cx="44" cy="14" r="18" fill="#a855f7" class="orbburst"/>
+    <circle cx="44" cy="14" r="10" fill="#e879f9" class="glow"/>
+    <circle cx="44" cy="14" r="6" fill="#fff" class="orbcore"/>
+    <!-- Magic beams -->
+    <line x1="44" y1="14" x2="20" y2="0" stroke="#e879f9" stroke-width="2" class="beams"/>
+    <line x1="44" y1="14" x2="64" y2="4" stroke="#c084fc" stroke-width="2" class="beams"/>
+    <line x1="44" y1="14" x2="64" y2="24" stroke="#e879f9" stroke-width="2" class="beams"/>
+    <line x1="44" y1="14" x2="56" y2="0" stroke="#fbbf24" stroke-width="1.5" class="beams"/>
+    <!-- Robe feet -->
+    <rect x="18" y="70" width="12" height="8" rx="3" fill="#4c1d95"/>
+    <rect x="34" y="70" width="12" height="8" rx="3" fill="#4c1d95"/>
+  </g>
+</svg>

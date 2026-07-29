@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80">
+  <style>
+    @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+    @keyframes glow { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
+    .c { animation: bob 1.3s ease-in-out infinite; }
+    .aura { animation: glow 2.5s ease-in-out infinite; }
+  </style>
+  <!-- Soft cyan aura -->
+  <ellipse cx="32" cy="44" rx="22" ry="20" fill="#06b6d4" opacity="0.1" class="aura"/>
+  <g class="c">
+    <!-- White skull cap / tonsure -->
+    <ellipse cx="32" cy="9" rx="13" ry="10" fill="#e2e8f0"/>
+    <rect x="22" y="12" width="20" height="6" rx="1" fill="#cbd5e1"/>
+    <!-- Face -->
+    <rect x="24" y="8" width="16" height="14" rx="3" fill="#fde68a"/>
+    <!-- Eyes (calm, serene) -->
+    <rect x="26" y="12" width="4" height="3" fill="#1e3a5f"/>
+    <rect x="34" y="12" width="4" height="3" fill="#1e3a5f"/>
+    <!-- Serene expression -->
+    <path d="M27 19 Q32 22 37 19" stroke="#92400e" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- White collar -->
+    <rect x="26" y="22" width="12" height="5" rx="2" fill="#f1f5f9"/>
+    <!-- Neck -->
+    <rect x="29" y="20" width="6" height="5" fill="#fde68a"/>
+    <!-- Vestment body (white/cyan) -->
+    <rect x="16" y="26" width="32" height="30" rx="2" fill="#e2e8f0"/>
+    <!-- Stole (cyan band) -->
+    <rect x="28" y="26" width="8" height="30" fill="#06b6d4"/>
+    <!-- Cross on stole -->
+    <rect x="30" y="30" width="4" height="20" fill="#fff"/>
+    <rect x="26" y="38" width="12" height="4" fill="#fff"/>
+    <!-- Left sleeve -->
+    <rect x="8" y="26" width="10" height="18" rx="3" fill="#e2e8f0"/>
+    <!-- Left hand holding book -->
+    <rect x="6" y="42" width="14" height="10" rx="2" fill="#fde68a"/>
+    <!-- Holy book -->
+    <rect x="4" y="42" width="14" height="12" rx="2" fill="#1e40af"/>
+    <rect x="6" y="44" width="10" height="8" fill="#3b82f6"/>
+    <line x1="11" y1="44" x2="11" y2="52" stroke="#fff" stroke-width="1"/>
+    <line x1="6" y1="48" x2="16" y2="48" stroke="#fff" stroke-width="1"/>
+    <!-- Right sleeve -->
+    <rect x="46" y="26" width="10" height="18" rx="3" fill="#e2e8f0"/>
+    <!-- Right hand raised in blessing -->
+    <rect x="46" y="22" width="10" height="8" rx="2" fill="#fde68a"/>
+    <!-- Blessing glow at right hand -->
+    <circle cx="51" cy="18" r="5" fill="#67e8f9" class="aura"/>
+    <circle cx="51" cy="18" r="3" fill="#a5f3fc"/>
+    <!-- Robe hem -->
+    <polygon points="16,56 48,56 52,72 12,72" fill="#cbd5e1"/>
+    <!-- Shoes -->
+    <rect x="18" y="70" width="12" height="8" rx="3" fill="#1c1917"/>
+    <rect x="34" y="70" width="12" height="8" rx="3" fill="#1c1917"/>
+  </g>
+</svg>

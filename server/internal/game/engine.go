@@ -11,15 +11,20 @@ const (
 
 type AttackDef struct {
 	Damage   int
+	Heal     int
 	MinWords int
 	MaxWords int
+	IsHeal   bool
 }
 
 var attackDefs = map[string]AttackDef{
-	"quick":    {Damage: 80, MinWords: 4, MaxWords: 8},
-	"normal":   {Damage: 180, MinWords: 8, MaxWords: 15},
-	"heavy":    {Damage: 350, MinWords: 15, MaxWords: 25},
-	"ultimate": {Damage: 600, MinWords: 25, MaxWords: 40},
+	"grunt":   {Damage: 80,  MinWords: 4,  MaxWords: 8},
+	"archer":  {Damage: 180, MinWords: 8,  MaxWords: 15},
+	"paladin": {Damage: 350, MinWords: 15, MaxWords: 25},
+	"wizard":  {Damage: 600, MinWords: 25, MaxWords: 40},
+	"cleric":  {Heal: 100,   MinWords: 4,  MaxWords: 8,  IsHeal: true},
+	"priest":  {Heal: 250,   MinWords: 8,  MaxWords: 15, IsHeal: true},
+	"saint":   {Heal: 500,   MinWords: 15, MaxWords: 25, IsHeal: true},
 }
 
 func CalculateDamage(baseDamage int, accuracy float64) int {

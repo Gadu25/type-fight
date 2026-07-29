@@ -475,7 +475,7 @@ func (rm *RoomManager) SetRoomStatus(roomID, status string) error {
 
 func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 	def := GetAttackDef(tier)
-	if def.Damage == 0 {
+	if def.MinWords == 0 {
 		return fmt.Errorf("invalid attack tier: %s", tier)
 	}
 	rm.mu.RLock()
@@ -499,6 +499,9 @@ type AttackResult struct {
 	OldHP      int
 	NewHP      int
 	Damage     int
+	IsHeal     bool
+	PlayerID   string
+	HealAmount int
 }
 
 func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, total int) (*AttackResult, error) {
@@ -544,30 +547,49 @@ func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, to
 		if accuracy < 0.25 {
 			accuracy = 0.25
 		}
-		damage := CalculateDamage(def.Damage, accuracy)
 
 		var result *AttackResult
-		for id, p := range room.Players {
-			if id != playerID && p.IsAlive {
-				oldHP := p.HP
-				p.HP -= damage
-				if p.HP <= 0 {
-					p.HP = 0
-					p.IsAlive = false
-				}
-				result = &AttackResult{
-					OpponentID: id,
-					OldHP:      oldHP,
-					NewHP:      p.HP,
-					Damage:     oldHP - p.HP,
+		if def.IsHeal {
+			healAmount := CalculateDamage(def.Heal, accuracy)
+			oldHP := attacker.HP
+			attacker.HP += healAmount
+			if attacker.HP > BasePlayerHP {
+				attacker.HP = BasePlayerHP
+			}
+			result = &AttackResult{
+				IsHeal:     true,
+				PlayerID:   playerID,
+				OldHP:      oldHP,
+				NewHP:      attacker.HP,
+				HealAmount: attacker.HP - oldHP,
+			}
+		} else {
+			damage := CalculateDamage(def.Damage, accuracy)
+			for id, p := range room.Players {
+				if id != playerID && p.IsAlive {
+					oldHP := p.HP
+					p.HP -= damage
+					if p.HP <= 0 {
+						p.HP = 0
+						p.IsAlive = false
+					}
+					result = &AttackResult{
+						OpponentID: id,
+						OldHP:      oldHP,
+						NewHP:      p.HP,
+						Damage:     oldHP - p.HP,
+					}
 				}
 			}
+			if result == nil {
+				attacker.CurrentAttack = ""
+				room.mu.Unlock()
+				return nil, fmt.Errorf("no valid opponent found")
+			}
 		}
+
 		attacker.CurrentAttack = ""
 		room.mu.Unlock()
-		if result == nil {
-			return nil, fmt.Errorf("no valid opponent found")
-		}
 		return result, nil
 	}
 	return nil, fmt.Errorf("player not found")
@@ -575,7 +597,7 @@ func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, to
 
 func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 	def := GetAttackDef(newTier)
-	if def.Damage == 0 {
+	if def.MinWords == 0 {
 		return fmt.Errorf("invalid attack tier: %s", newTier)
 	}
 	rm.mu.RLock()
