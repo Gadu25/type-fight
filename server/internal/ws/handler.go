@@ -385,6 +385,16 @@ func (h *Handler) handleSelectAttack(conn Connection, roomID, playerID string, d
 		h.sendError(conn, err.Error())
 		return
 	}
+
+	broadcast := CombatServerMessage{
+		Type: "opponent_attack",
+		OpponentAttack: &OpponentAttackPayload{
+			PlayerID: playerID,
+			Tier:     msg.SelectAttack.Tier,
+		},
+	}
+	data, _ = json.Marshal(broadcast)
+	h.hub.BroadcastToRoom(roomID, data)
 }
 
 func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string, data []byte) {
@@ -462,6 +472,16 @@ func (h *Handler) handleSwitchAttack(conn Connection, roomID, playerID string, d
 		h.sendError(conn, err.Error())
 		return
 	}
+
+	broadcast := CombatServerMessage{
+		Type: "opponent_attack",
+		OpponentAttack: &OpponentAttackPayload{
+			PlayerID: playerID,
+			Tier:     msg.SwitchAttack.Tier,
+		},
+	}
+	data, _ = json.Marshal(broadcast)
+	h.hub.BroadcastToRoom(roomID, data)
 }
 
 func (h *Handler) HandleDisconnect(roomID, playerID string) {

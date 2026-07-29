@@ -76,6 +76,11 @@ type SwitchAttackPayload struct {
 	Tier string `json:"tier"`
 }
 
+type OpponentAttackPayload struct {
+	PlayerID string `json:"playerID"`
+	Tier     string `json:"tier"`
+}
+
 type PlayerLeftPayload struct {
 	PlayerID  string       `json:"playerID"`
 	NewHostID string       `json:"new_host_id,omitempty"`
@@ -89,7 +94,8 @@ type CombatServerMessage struct {
 	PlayerDefeated *PlayerDefeatedPayload `json:"player_defeated,omitempty"`
 	BattleOver   *BattleOverPayload    `json:"battle_over,omitempty"`
 	GameStart    *GameStartPayload     `json:"game_start,omitempty"`
-	PlayerLeft   *PlayerLeftPayload    `json:"player_left,omitempty"`
+	PlayerLeft     *PlayerLeftPayload      `json:"player_left,omitempty"`
+	OpponentAttack *OpponentAttackPayload  `json:"opponent_attack,omitempty"`
 }
 
 type HpUpdatePayload struct {
