@@ -570,10 +570,10 @@ export default function RoomPage() {
             )}
 
             {(gameState === 'countdown' || gameState === 'playing') && (
-              <div className={`relative bg-gradient-to-b from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700 p-6 shadow-lg ${gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}`}>
+              <div className={`relative bg-gradient-to-b from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700 py-8 px-6 shadow-lg ${gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}`}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-full relative"
+                    <div className="w-full relative p-2 rounded-xl"
                       style={{
                         boxShadow: playerDamageFlash > 0 ? '0 0 24px rgba(239,68,68,0.5)' : 'none',
                         transition: 'box-shadow 0.3s ease-out',
@@ -620,7 +620,7 @@ export default function RoomPage() {
                     </div>
                     <BattleTimer timeLeft={timeLeft} />
                     <div
-                      className="w-full relative"
+                      className="w-full relative p-2 rounded-xl"
                       style={{
                         boxShadow: opponentDamageFlash > 0 ? '0 0 24px rgba(239,68,68,0.5)' : 'none',
                         transition: 'box-shadow 0.3s ease-out',
