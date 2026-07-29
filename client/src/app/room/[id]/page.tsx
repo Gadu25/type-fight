@@ -570,13 +570,17 @@ export default function RoomPage() {
             )}
 
             {(gameState === 'countdown' || gameState === 'playing') && (
-              <div className={gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}>
+              <div className={`relative bg-gradient-to-b from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700 p-6 shadow-lg ${gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}`}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="w-full relative"
-                      style={playerDamageFlash > 0 ? {
-                        animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
-                      } : undefined}
+                      style={{
+                        boxShadow: playerDamageFlash > 0 ? '0 0 24px rgba(239,68,68,0.5)' : 'none',
+                        transition: 'box-shadow 0.3s ease-out',
+                        ...(playerDamageFlash > 0 ? {
+                          animation: `damage-shake ${0.3 + (playerDamageFlash / 600) * 0.4}s ease-out`,
+                        } : {}),
+                      }}
                     >
                       <HealthBar
                         name={currentPlayer?.name || 'You'}
@@ -617,9 +621,13 @@ export default function RoomPage() {
                     <BattleTimer timeLeft={timeLeft} />
                     <div
                       className="w-full relative"
-                      style={opponentDamageFlash > 0 ? {
-                        animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
-                      } : undefined}
+                      style={{
+                        boxShadow: opponentDamageFlash > 0 ? '0 0 24px rgba(239,68,68,0.5)' : 'none',
+                        transition: 'box-shadow 0.3s ease-out',
+                        ...(opponentDamageFlash > 0 ? {
+                          animation: `damage-shake ${0.3 + (opponentDamageFlash / 600) * 0.4}s ease-out`,
+                        } : {}),
+                      }}
                     >
                       <HealthBar
                         name={opponentPlayer?.name || 'Opponent'}
