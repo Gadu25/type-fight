@@ -433,6 +433,136 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	}
 }
 
+func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
+	hostConn := &TestConnection{}
+	playerConn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
+	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	selectMsg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{
+			Tier: "quick",
+		},
+	}
+	selectData, _ := json.Marshal(selectMsg)
+	handler.handleSelectAttack(playerConn, room.ID, "player1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	foundOpponentAttack := false
+	for _, msgBytes := range hostConn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "opponent_attack" {
+			foundOpponentAttack = true
+			if resp.OpponentAttack == nil {
+				t.Fatal("expected opponent_attack payload")
+			}
+			if resp.OpponentAttack.PlayerID != "player1" {
+				t.Errorf("expected PlayerID 'player1', got '%s'", resp.OpponentAttack.PlayerID)
+			}
+			if resp.OpponentAttack.Tier != "quick" {
+				t.Errorf("expected Tier 'quick', got '%s'", resp.OpponentAttack.Tier)
+			}
+		}
+	}
+	if !foundOpponentAttack {
+		t.Error("expected opponent_attack broadcast to other players")
+	}
+}
+
+func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
+	hostConn := &TestConnection{}
+	playerConn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	err := rm.JoinRoom(room.ID, "host1", "Host")
+	if err != nil {
+		t.Fatalf("failed to join host: %v", err)
+	}
+	err = rm.JoinRoom(room.ID, "player1", "Test Player")
+	if err != nil {
+		t.Fatalf("failed to join player: %v", err)
+	}
+	err = rm.StartGame(room.ID, "host1")
+	if err != nil {
+		t.Fatalf("failed to start game: %v", err)
+	}
+
+	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
+	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
+	time.Sleep(10 * time.Millisecond)
+
+	handler := NewHandler(hub, rm)
+
+	// Select an attack first
+	selectMsg := CombatClientMessage{
+		Type: "select_attack",
+		SelectAttack: &SelectAttackPayload{
+			Tier: "quick",
+		},
+	}
+	selectData, _ := json.Marshal(selectMsg)
+	handler.handleSelectAttack(playerConn, room.ID, "player1", selectData)
+	time.Sleep(10 * time.Millisecond)
+
+	// Switch to a different attack
+	switchMsg := CombatClientMessage{
+		Type: "switch_attack",
+		SwitchAttack: &SwitchAttackPayload{
+			Tier: "heavy",
+		},
+	}
+	switchData, _ := json.Marshal(switchMsg)
+	handler.handleSwitchAttack(playerConn, room.ID, "player1", switchData)
+	time.Sleep(10 * time.Millisecond)
+
+	foundOpponentAttack := false
+	for _, msgBytes := range hostConn.messages {
+		var resp CombatServerMessage
+		if err := json.Unmarshal(msgBytes, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "opponent_attack" && resp.OpponentAttack != nil && resp.OpponentAttack.Tier == "heavy" {
+			foundOpponentAttack = true
+			if resp.OpponentAttack.PlayerID != "player1" {
+				t.Errorf("expected PlayerID 'player1', got '%s'", resp.OpponentAttack.PlayerID)
+			}
+		}
+	}
+	if !foundOpponentAttack {
+		t.Error("expected opponent_attack broadcast with updated tier after switch")
+	}
+}
+
 func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	hostConn := &TestConnection{}
 	p2Conn := &TestConnection{}

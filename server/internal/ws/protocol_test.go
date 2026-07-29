@@ -110,6 +110,33 @@ func TestCombatClientMessage_AttackComplete(t *testing.T) {
 	}
 }
 
+func TestCombatServerMessage_OpponentAttack(t *testing.T) {
+	msg := CombatServerMessage{
+		Type: "opponent_attack",
+		OpponentAttack: &OpponentAttackPayload{
+			PlayerID: "player1",
+			Tier:     "heavy",
+		},
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+	var decoded CombatServerMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+	if decoded.Type != "opponent_attack" {
+		t.Errorf("Expected type 'opponent_attack', got '%s'", decoded.Type)
+	}
+	if decoded.OpponentAttack.PlayerID != "player1" {
+		t.Errorf("Expected PlayerID 'player1', got '%s'", decoded.OpponentAttack.PlayerID)
+	}
+	if decoded.OpponentAttack.Tier != "heavy" {
+		t.Errorf("Expected Tier 'heavy', got '%s'", decoded.OpponentAttack.Tier)
+	}
+}
+
 func TestCombatServerMessage_HpUpdate(t *testing.T) {
 	msg := CombatServerMessage{
 		Type: "hp_update",
