@@ -606,7 +606,7 @@ export default function RoomPage() {
                       {floatNumbers.filter(n => n.side === 'opponent').map(n => (
                         <div
                           key={n.id}
-                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-green-400"
+                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-red-400"
                         >
                           -{n.damage}
                         </div>
