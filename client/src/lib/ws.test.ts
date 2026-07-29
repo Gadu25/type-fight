@@ -13,7 +13,7 @@ describe('ClientMessage types', () => {
   it('should have attack_complete type', () => {
     const msg: ClientMessage = {
       type: 'attack_complete',
-      attack_complete: { correct: 50, total: 60 }
+      attack_complete: { tier: 'quick', phrase: 'test phrase', correct: 50, total: 60 }
     }
     expect(msg.type).toBe('attack_complete')
   })
@@ -28,16 +28,12 @@ describe('ClientMessage types', () => {
 })
 
 describe('ServerMessage types', () => {
-  it('should have attack_phrase type', () => {
+  it('should have game_setup type', () => {
     const msg: ServerMessage = {
-      type: 'attack_phrase',
-      attack_phrase: {
-        phrase: 'The sword shines bright',
-        tier: 'quick',
-        damage: 80
-      }
+      type: 'game_setup',
+      phrase_pools: { quick: ['phrase1'], normal: ['phrase2'] }
     }
-    expect(msg.type).toBe('attack_phrase')
+    expect(msg.type).toBe('game_setup')
   })
 
   it('should have hp_update type', () => {

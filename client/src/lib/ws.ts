@@ -20,7 +20,7 @@ export type ClientMessage =
   | { type: 'ready' }
   | { type: 'start_game' }
   | { type: 'select_attack'; select_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
-  | { type: 'attack_complete'; attack_complete: { correct: number; total: number } }
+  | { type: 'attack_complete'; attack_complete: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate'; phrase: string; correct: number; total: number } }
   | { type: 'switch_attack'; switch_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
   | { type: 'play_again' }
 
@@ -35,7 +35,7 @@ export type ServerMessage =
   | { type: 'return_to_lobby'; return_to_lobby: boolean }
   | { type: 'game_over'; results: ResultInfo[]; winner: string }
   | { type: 'error'; error: { message: string } }
-  | { type: 'attack_phrase'; attack_phrase: { phrase: string; tier: string; damage: number } }
+  | { type: 'game_setup'; phrase_pools: Record<string, string[]> }
   | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }
   | { type: 'player_defeated'; player_defeated: { playerID: string } }
   | { type: 'battle_over'; battle_over: { winner: string; reason: string } }

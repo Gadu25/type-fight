@@ -16,6 +16,7 @@ import AttackSelector from '@/components/AttackSelector'
 import HealthBar from '@/components/HealthBar'
 import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
+import { getRandomPhrase } from '@/lib/words'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -29,6 +30,13 @@ interface Player {
 }
 
 const BATTLE_TIME_LIMIT = 120
+
+const attackDefs: Record<string, number> = {
+  quick: 80,
+  normal: 180,
+  heavy: 350,
+  ultimate: 600,
+}
 
 export default function RoomPage() {
   const params = useParams()
@@ -66,6 +74,7 @@ export default function RoomPage() {
   const totalKeystrokesRef = useRef<number>(0)
   const gameStartTimeRef = useRef<number>(0)
   const gameStateRef = useRef<GameState>('lobby')
+  const phrasePoolsRef = useRef<Record<string, string[]> | null>(null)
 
   useEffect(() => {
     playersRef.current = players
@@ -185,11 +194,9 @@ export default function RoomPage() {
         }
         break
 
-      case 'attack_phrase':
-        if (message.attack_phrase) {
-          setCurrentPhrase(message.attack_phrase.phrase)
-          setCurrentAttack(message.attack_phrase.tier)
-          setCurrentDamage(message.attack_phrase.damage)
+      case 'game_setup':
+        if (message.phrase_pools) {
+          phrasePoolsRef.current = message.phrase_pools
         }
         break
 
@@ -373,6 +380,11 @@ export default function RoomPage() {
   }, [timeLeft, gameState, playerId, playerHP, opponentHP])
 
   const handleSelectAttack = useCallback((tier: 'quick' | 'normal' | 'heavy' | 'ultimate') => {
+    const phrase = getRandomPhrase(tier)
+    setCurrentPhrase(phrase)
+    setCurrentAttack(tier)
+    const def = attackDefs[tier]
+    setCurrentDamage(def)
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
     }
@@ -381,12 +393,20 @@ export default function RoomPage() {
   const handleAttackComplete = useCallback((result: { correct: number; total: number }) => {
     totalCorrectCharsRef.current += result.correct
     totalKeystrokesRef.current += result.total
-    if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'attack_complete', attack_complete: result })
+    if (wsRef.current && currentAttack) {
+      sendMessage(wsRef.current, {
+        type: 'attack_complete',
+        attack_complete: {
+          tier: currentAttack as 'quick' | 'normal' | 'heavy' | 'ultimate',
+          phrase: currentPhrase,
+          correct: result.correct,
+          total: result.total,
+        },
+      })
     }
     setCurrentPhrase('')
     setCurrentAttack('')
-  }, [])
+  }, [currentAttack, currentPhrase])
 
   const handleReady = useCallback(() => {
     if (wsRef.current) {
