@@ -37,9 +37,6 @@ func TestSelectAttack_SetsAttackState(t *testing.T) {
 	if player.CurrentAttack != "quick" {
 		t.Errorf("Expected attack 'quick', got '%s'", player.CurrentAttack)
 	}
-	if player.CurrentPhrase == "" {
-		t.Error("Expected phrase to be set")
-	}
 }
 
 func TestCompleteAttack_AppliesDamage(t *testing.T) {
@@ -53,7 +50,7 @@ func TestCompleteAttack_AppliesDamage(t *testing.T) {
 		}
 	}
 	rm.SelectAttack(player1ID, "quick")
-	rm.CompleteAttack(player1ID, 100, 100)
+	rm.CompleteAttack(player1ID, "quick", "The sword shines bright", 100, 100)
 	room = rm.GetRoom(roomID)
 	if room.Players[player2ID].HP != BasePlayerHP-80 {
 		t.Errorf("Expected HP %d, got %d", BasePlayerHP-80, room.Players[player2ID].HP)
@@ -71,11 +68,11 @@ func TestCompleteAttack_InaccuracyReducesDamage(t *testing.T) {
 		}
 	}
 	rm.SelectAttack(player1ID, "quick")
-	rm.CompleteAttack(player1ID, 50, 100)
+	rm.CompleteAttack(player1ID, "quick", "Fire burns through darkness", 20, 50)
 	room = rm.GetRoom(roomID)
-	expectedDamage := 80 * 50 / 100
-	if room.Players[player2ID].HP != BasePlayerHP-expectedDamage {
-		t.Errorf("Expected HP %d, got %d", BasePlayerHP-expectedDamage, room.Players[player2ID].HP)
+	// 20/50 accuracy → damage = int(80 * 0.4) = 32
+	if room.Players[player2ID].HP != BasePlayerHP-32 {
+		t.Errorf("Expected HP %d, got %d", BasePlayerHP-32, room.Players[player2ID].HP)
 	}
 }
 
@@ -88,16 +85,11 @@ func TestSwitchAttack_DiscardsProgress(t *testing.T) {
 		break
 	}
 	rm.SelectAttack(playerID, "quick")
-	room = rm.GetRoom(roomID)
-	oldPhrase := room.Players[playerID].CurrentPhrase
 	rm.SwitchAttack(playerID, "heavy")
 	room = rm.GetRoom(roomID)
 	player := room.Players[playerID]
 	if player.CurrentAttack != "heavy" {
 		t.Errorf("Expected attack 'heavy', got '%s'", player.CurrentAttack)
-	}
-	if player.CurrentPhrase == oldPhrase {
-		t.Error("Expected new phrase after switch")
 	}
 }
 
@@ -112,9 +104,9 @@ func TestCheckBattleEnd_Defeat(t *testing.T) {
 		}
 	}
 	rm.SelectAttack(player1ID, "ultimate")
-	rm.CompleteAttack(player1ID, 100, 100)
+	rm.CompleteAttack(player1ID, "ultimate", "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon", 100, 100)
 	rm.SelectAttack(player1ID, "ultimate")
-	rm.CompleteAttack(player1ID, 100, 100)
+	rm.CompleteAttack(player1ID, "ultimate", "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon", 100, 100)
 	room = rm.GetRoom(roomID)
 	if room.Players[player2ID].HP > 0 {
 		t.Error("Expected player2 to be defeated")
@@ -139,7 +131,7 @@ func TestCheckBattleEnd_NoEnd(t *testing.T) {
 		}
 	}
 	rm.SelectAttack(player1ID, "quick")
-	rm.CompleteAttack(player1ID, 100, 100)
+	rm.CompleteAttack(player1ID, "quick", "The sword shines bright", 100, 100)
 	winner, defeated := rm.CheckBattleEnd()
 	if winner != "" || defeated != "" {
 		t.Error("Expected no winner yet")

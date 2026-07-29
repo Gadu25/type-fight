@@ -110,31 +110,6 @@ func TestCombatClientMessage_AttackComplete(t *testing.T) {
 	}
 }
 
-func TestCombatServerMessage_AttackPhrase(t *testing.T) {
-	msg := CombatServerMessage{
-		Type: "attack_phrase",
-		AttackPhrase: &AttackPhrasePayload{
-			Phrase: "The sword shines bright",
-			Tier:   "quick",
-			Damage: 80,
-		},
-	}
-	data, err := json.Marshal(msg)
-	if err != nil {
-		t.Fatalf("Failed to marshal: %v", err)
-	}
-	var decoded CombatServerMessage
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatalf("Failed to unmarshal: %v", err)
-	}
-	if decoded.Type != "attack_phrase" {
-		t.Errorf("Expected type 'attack_phrase', got '%s'", decoded.Type)
-	}
-	if decoded.AttackPhrase.Phrase != "The sword shines bright" {
-		t.Errorf("Expected phrase 'The sword shines bright', got '%s'", decoded.AttackPhrase.Phrase)
-	}
-}
-
 func TestCombatServerMessage_HpUpdate(t *testing.T) {
 	msg := CombatServerMessage{
 		Type: "hp_update",

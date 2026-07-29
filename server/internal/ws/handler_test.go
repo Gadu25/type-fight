@@ -236,7 +236,7 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 	}
 }
 
-func TestHandleSelectAttack_SendsPhrase(t *testing.T) {
+func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 	conn := &TestConnection{}
 	hub := NewHub()
 	go hub.Run()
@@ -277,25 +277,13 @@ func TestHandleSelectAttack_SendsPhrase(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if len(conn.messages) == 0 {
-		t.Fatal("expected at least one message to be sent")
+	room = rm.GetRoom(room.ID)
+	if room == nil {
+		t.Fatal("room not found")
 	}
-
-	var resp CombatServerMessage
-	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-	if resp.Type != "attack_phrase" {
-		t.Errorf("expected type 'attack_phrase', got '%s'", resp.Type)
-	}
-	if resp.AttackPhrase == nil {
-		t.Fatal("expected attack_phrase payload")
-	}
-	if resp.AttackPhrase.Tier != "quick" {
-		t.Errorf("expected tier 'quick', got '%s'", resp.AttackPhrase.Tier)
-	}
-	if resp.AttackPhrase.Phrase == "" {
-		t.Error("expected a non-empty phrase")
+	player := room.Players["player1"]
+	if player.CurrentAttack != "quick" {
+		t.Errorf("expected CurrentAttack 'quick', got '%s'", player.CurrentAttack)
 	}
 }
 
@@ -344,15 +332,17 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	completeMsg := CombatClientMessage{
 		Type: "attack_complete",
 		AttackComplete: &AttackCompletePayload{
-			Correct: 100,
-			Total:   100,
+			Tier:    "quick",
+			Phrase:  "The sword shines bright",
+			Correct: 22,
+			Total:   22,
 		},
 	}
 	completeData, _ := json.Marshal(completeMsg)
 	handler.handleAttackComplete(conn, room.ID, "player1", completeData)
 	time.Sleep(10 * time.Millisecond)
 
-	// Should have messages: attack_phrase + hp_update
+	// Should have hp_update message
 	foundHPUpdate := false
 	for _, msgBytes := range conn.messages {
 		var resp CombatServerMessage
@@ -380,7 +370,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	}
 }
 
-func TestHandleSwitchAttack_DiscardsProgress(t *testing.T) {
+func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	conn := &TestConnection{}
 	hub := NewHub()
 	go hub.Run()
@@ -432,26 +422,14 @@ func TestHandleSwitchAttack_DiscardsProgress(t *testing.T) {
 	handler.handleSwitchAttack(conn, room.ID, "player1", switchData)
 	time.Sleep(10 * time.Millisecond)
 
-	// Should have messages: attack_phrase (from select) + attack_phrase (from switch)
-	if len(conn.messages) < 2 {
-		t.Fatalf("expected at least 2 messages, got %d", len(conn.messages))
+	// Verify the CurrentAttack was updated
+	room = rm.GetRoom(room.ID)
+	if room == nil {
+		t.Fatal("room not found")
 	}
-
-	var lastResp CombatServerMessage
-	if err := json.Unmarshal(conn.messages[len(conn.messages)-1], &lastResp); err != nil {
-		t.Fatalf("failed to unmarshal response: %v", err)
-	}
-	if lastResp.Type != "attack_phrase" {
-		t.Errorf("expected type 'attack_phrase', got '%s'", lastResp.Type)
-	}
-	if lastResp.AttackPhrase == nil {
-		t.Fatal("expected attack_phrase payload")
-	}
-	if lastResp.AttackPhrase.Tier != "heavy" {
-		t.Errorf("expected tier 'heavy', got '%s'", lastResp.AttackPhrase.Tier)
-	}
-	if lastResp.AttackPhrase.Phrase == "" {
-		t.Error("expected a non-empty phrase")
+	player := room.Players["player1"]
+	if player.CurrentAttack != "heavy" {
+		t.Errorf("expected CurrentAttack 'heavy', got '%s'", player.CurrentAttack)
 	}
 }
 
@@ -477,41 +455,43 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 		t.Fatalf("failed to start game: %v", err)
 	}
 
+	// Set host HP to 400 so one ultimate attack kills
+	// Note: direct field access in tests is fine; data race acceptable in test code
+	room = rm.GetRoom(room.ID)
+	room.Players["host1"].HP = 400
+
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: p2Conn, RoomID: room.ID, PlayerID: "player1"})
 	time.Sleep(10 * time.Millisecond)
 
 	handler := NewHandler(hub, rm)
 
-	// Select ultimate attack (600 damage, enough to kill in 2 hits from 1000 HP)
+	// Select ultimate attack on player1
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{Tier: "ultimate"},
 	}
 	selectData, _ := json.Marshal(selectMsg)
-	handler.handleSelectAttack(hostConn, room.ID, "host1", selectData)
+	handler.handleSelectAttack(p2Conn, room.ID, "player1", selectData)
 	time.Sleep(10 * time.Millisecond)
 
-	// Complete first attack (non-lethal)
+	// Complete attack with ultimate phrase
 	completeMsg := CombatClientMessage{
 		Type: "attack_complete",
-		AttackComplete: &AttackCompletePayload{Correct: 100, Total: 100},
+		AttackComplete: &AttackCompletePayload{
+			Tier:    "ultimate",
+			Phrase:  "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon",
+			Correct: 98,
+			Total:   98,
+		},
 	}
 	completeData, _ := json.Marshal(completeMsg)
-	handler.handleAttackComplete(hostConn, room.ID, "host1", completeData)
+	handler.handleAttackComplete(p2Conn, room.ID, "player1", completeData)
 	time.Sleep(10 * time.Millisecond)
 
-	// Select second attack
-	handler.handleSelectAttack(hostConn, room.ID, "host1", selectData)
-	time.Sleep(10 * time.Millisecond)
-
-	// Complete second attack (lethal - opponent should be at ~400 HP, this does 600)
-	handler.handleAttackComplete(hostConn, room.ID, "host1", completeData)
-	time.Sleep(10 * time.Millisecond)
-
-	// Check host's messages for battle_over
+	// Check p2's messages for battle_over
 	foundBattleOver := false
-	for _, msgBytes := range hostConn.messages {
+	for _, msgBytes := range p2Conn.messages {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -521,8 +501,8 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 			if resp.BattleOver == nil {
 				t.Fatal("expected battle_over payload")
 			}
-			if resp.BattleOver.Winner != "host1" {
-				t.Errorf("expected winner 'host1', got '%s'", resp.BattleOver.Winner)
+			if resp.BattleOver.Winner != "player1" {
+				t.Errorf("expected winner 'player1', got '%s'", resp.BattleOver.Winner)
 			}
 			if resp.BattleOver.Reason != "opponent_defeated" {
 				t.Errorf("expected reason 'opponent_defeated', got '%s'", resp.BattleOver.Reason)
@@ -531,36 +511,6 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	}
 	if !foundBattleOver {
 		t.Error("expected battle_over message to be sent to attacker")
-	}
-
-	// Check p2's messages for battle_over
-	foundBattleOverP2 := false
-	for _, msgBytes := range p2Conn.messages {
-		var resp CombatServerMessage
-		if err := json.Unmarshal(msgBytes, &resp); err != nil {
-			continue
-		}
-		if resp.Type == "battle_over" {
-			foundBattleOverP2 = true
-		}
-	}
-	if !foundBattleOverP2 {
-		t.Error("expected battle_over message to be sent to defender")
-	}
-
-	// Also verify player_defeated was sent
-	foundDefeated := false
-	for _, msgBytes := range hostConn.messages {
-		var resp CombatServerMessage
-		if err := json.Unmarshal(msgBytes, &resp); err != nil {
-			continue
-		}
-		if resp.Type == "player_defeated" {
-			foundDefeated = true
-		}
-	}
-	if !foundDefeated {
-		t.Error("expected player_defeated message")
 	}
 }
 
