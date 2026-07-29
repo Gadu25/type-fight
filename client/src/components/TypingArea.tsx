@@ -37,8 +37,25 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
   const correctCountRef = useRef(0)
   const totalKeystrokesRef = useRef(0)
   const damageKeyRef = useRef(0)
+  const wiggleKeyRef = useRef(0)
   const [damageKey, setDamageKey] = useState(0)
   const [animName, setAnimName] = useState('')
+  const [wiggle, setWiggle] = useState<{ index: number; key: number } | null>(null)
+
+  useEffect(() => {
+    const css = `@keyframes char-wiggle {
+      0%   { transform: translateX(0) rotate(0deg); }
+      20%  { transform: translateX(-3px) rotate(-6deg); }
+      40%  { transform: translateX(3px) rotate(6deg); }
+      60%  { transform: translateX(-2px) rotate(-4deg); }
+      80%  { transform: translateX(2px) rotate(4deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }`
+    const style = document.createElement('style')
+    style.textContent = css
+    document.head.appendChild(style)
+    return () => { document.head.removeChild(style) }
+  }, [])
 
   useEffect(() => {
     setPosition(0)
@@ -104,6 +121,9 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
       errorsRef.current = next
       setErrors(next)
       totalKeystrokesRef.current += 1
+
+      wiggleKeyRef.current += 1
+      setWiggle({ index: pos, key: wiggleKeyRef.current })
     }
   }, [phrase, disabled, onComplete])
 
@@ -123,13 +143,24 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
         }
       } else if (index === position) {
         if (errors.has(index)) {
-          className = 'text-red-500'
+          className = 'text-red-500 bg-gray-700'
         } else if (position > 0) {
           className = 'text-white bg-gray-700'
         }
       }
+
+      const isWiggling = wiggle?.index === index
       return (
-        <span key={index} role="span" className={className}>
+        <span
+          key={isWiggling ? `${index}-${wiggle.key}` : index}
+          role="span"
+          className={className}
+          style={
+            isWiggling
+              ? { display: 'inline-block', whiteSpace: 'pre', animation: 'char-wiggle 0.25s ease-in-out' }
+              : undefined
+          }
+        >
           {char}
         </span>
       )
