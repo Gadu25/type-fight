@@ -21,9 +21,9 @@ describe('AttackSelector', () => {
     expect(screen.getByText('180 dmg')).toBeInTheDocument()
     expect(screen.getByText('350 dmg')).toBeInTheDocument()
     expect(screen.getByText('600 dmg')).toBeInTheDocument()
-    expect(screen.getByText('+100 hp')).toBeInTheDocument()
-    expect(screen.getByText('+250 hp')).toBeInTheDocument()
-    expect(screen.getByText('+500 hp')).toBeInTheDocument()
+    expect(screen.getByText('+60 hp')).toBeInTheDocument()
+    expect(screen.getByText('+140 hp')).toBeInTheDocument()
+    expect(screen.getByText('+280 hp')).toBeInTheDocument()
   })
 
   it('calls onSelect when attack button clicked', () => {

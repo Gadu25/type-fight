@@ -36,9 +36,9 @@ const attackDefs: Record<string, number> = {
   archer: 180,
   paladin: 350,
   wizard: 600,
-  cleric: 100,
-  priest: 250,
-  saint: 500,
+  cleric: 60,
+  priest: 140,
+  saint: 280,
 }
 
 

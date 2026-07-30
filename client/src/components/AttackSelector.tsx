@@ -20,9 +20,9 @@ const attacks: AttackOption[] = [
   { tier: 'archer',  name: 'Archer',  value: 180, shortcut: '2', color: '#22c55e', borderColor: '#16a34a', isHeal: false },
   { tier: 'paladin', name: 'Paladin', value: 350, shortcut: '3', color: '#3b82f6', borderColor: '#2563eb', isHeal: false },
   { tier: 'wizard',  name: 'Wizard',  value: 600, shortcut: '4', color: '#a855f7', borderColor: '#9333ea', isHeal: false },
-  { tier: 'cleric',  name: 'Cleric',  value: 100, shortcut: '5', color: '#10b981', borderColor: '#059669', isHeal: true },
-  { tier: 'priest',  name: 'Priest',  value: 250, shortcut: '6', color: '#06b6d4', borderColor: '#0891b2', isHeal: true },
-  { tier: 'saint',   name: 'Saint',   value: 500, shortcut: '7', color: '#fbbf24', borderColor: '#d97706', isHeal: true },
+  { tier: 'cleric',  name: 'Cleric',  value: 60, shortcut: '5', color: '#10b981', borderColor: '#059669', isHeal: true },
+  { tier: 'priest',  name: 'Priest',  value: 140, shortcut: '6', color: '#06b6d4', borderColor: '#0891b2', isHeal: true },
+  { tier: 'saint',   name: 'Saint',   value: 280, shortcut: '7', color: '#fbbf24', borderColor: '#d97706', isHeal: true },
 ]
 
 interface AttackSelectorProps {

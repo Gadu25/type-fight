@@ -1,8 +1,8 @@
 
 # Type-Fight Battle Design Specification
 
-Version: 0.1  
-Project: Type-Fight  
+Version: 0.2 (Team Battle Rework)
+Project: Type-Fight
 Genre: Competitive Real-Time Typing Battle
 
 ---
@@ -21,7 +21,7 @@ The game combines:
 
 - Typing skill
 - Real-time pressure
-- Attack decision-making
+- Team composition strategy
 - Fantasy combat visuals
 
 The initial goal is not to create a full RPG system.
@@ -36,17 +36,20 @@ Current implementation:
 
 - Create room
 - Join room
-- 1v1 typing battle
 - Shared phrase typing
 - Winner determined by WPM
 - Play again loop
-- LocalStorage persistence:
-  - Player name
-  - Match history
+- LocalStorage persistence (player name, match history)
 
-Current architecture is suitable for gameplay experimentation.
+Current architecture has been upgraded from single-player typing race to a combat system with:
 
-Do not introduce unnecessary complexity yet.
+- HP system (1000 base HP)
+- Attack selection (grunt, archer, paladin, wizard)
+- Healing options (cleric, priest, saint)
+- Damage calculation with accuracy
+- Battle ending conditions (HP reaches 0, timeout)
+
+This spec converts the single-character system to a team-based battle system.
 
 ---
 
@@ -61,6 +64,7 @@ The first versions should focus on:
 
 Avoid implementing early:
 
+- Individual character HP
 - Complex RPG stats
 - Character balance systems
 - Equipment
@@ -74,377 +78,298 @@ These features should only be added after the core battle system is proven fun.
 
 # 4. Core Gameplay Concept
 
-Type-Fight is a continuous real-time battle.
+Type-Fight is a continuous real-time team battle.
 
 There are no turns.
 
 Both players are always fighting.
 
+Each player controls a team of 4 characters.
+
 The gameplay loop:
 
-Both players fight independently and simultaneously.
-
-Each player chooses their own attack and types their own phrase.
-
 ```
-
+Team selection (pre-game, lobby)
+    ↓
 Battle begins
-
-```
     ↓
-```
-
-Each player chooses their attack type (1-4)
-
-```
+Player picks one of their 4 characters
     ↓
-```
-
-System generates a random phrase from the selected tier
-
-```
+System generates a random phrase from that character's tier
     ↓
-```
-
-Player types their phrase
-
-```
+Player types the phrase
     ↓
-```
-
-Attack animation happens
-
-```
+Character executes their skill (damage or heal)
     ↓
-```
-
-Opponent loses HP
-
-```
+Player picks any character again (same or different)
     ↓
-```
-
 Repeat
-
-```
     ↓
-```
-
-Player reaches 0 HP loses
-
+One team's shared HP reaches 0 → team loses
 ```
 
 The player is constantly making decisions:
 
-- Attack quickly?
-- Risk a stronger attack?
-- Play aggressively?
-- Play safely?
+- Which character to activate next?
+- Risk a slower high-damage character?
+- Play safe with fast damage?
+- Heal now or push damage?
+- Spam the same character or rotate?
 
-Players can switch attacks at any time.
+Players can switch between their 4 characters at any time.
 
-Switching abandons the current phrase and progress.
+There are no cooldowns — a character can be used repeatedly.
 
-The new attack generates a fresh phrase from the selected tier.
+Each activation generates a fresh random phrase from that character's tier.
 
-This allows adapting to the opponent's rhythm.
+This allows adapting to the opponent's rhythm and team composition.
 
 ---
 
 # 5. Core Balance Philosophy
 
-The main balancing resource is:
+The main balancing resources are:
 
 ## Time
 
-Every attack is a trade:
+Every action is a trade:
 
 ```
-
 Time invested
-
 ```
     vs
 ```
-
-Damage received
-
+Team HP impact
 ```
 
-A stronger attack requires:
+A stronger character requires:
 
 - Longer phrase
 - Longer typing time
 - Higher risk
 
-A weaker attack provides:
+A weaker character provides:
 
 - Faster completion
-- More frequent attacks
+- More frequent actions
 - Lower commitment
 
+## Team Composition
+
+Players choose 4 characters from a roster of 7.
+
+Each character has one role — damage or heal.
+
+There are no duplicates in a team.
+
+The choice trades off:
+
+- Damage output vs sustain
+- Speed vs power
+- Burst potential vs consistency
+
 ---
 
-# 6. Attack System
+# 6. Character System
 
-The first version contains four attack types.
+The roster has 7 characters. Each has a unique phrase pool and skill.
 
----
+## 6.1 Grunt
 
-# 6.1 Quick Attack
+Role: Fast consistent damage
 
-Purpose:
-
-Fast pressure and consistent damage.
-
-Characteristics:
-
-- Short phrase
-- Low damage
-- Low risk
-
-Example:
-
-```
-
-Phrase:
-
-"The sword shines"
-
-Expected completion:
-
-3-5 seconds
-
-Damage:
-
-80
-
-```
+Phrase length: 4-8 words (short)
+Expected completion: 3-5 seconds
+Effect: 80 damage to opponent team
 
 Gameplay style:
-
 - Spam pressure
 - Maintain momentum
 - Punish slow opponents
 
----
+## 6.2 Archer
 
-# 6.2 Normal Attack
+Role: Medium damage
 
-Purpose:
-
-Standard combat option.
-
-Characteristics:
-
-- Medium phrase
-- Medium damage
-
-Example:
-
-```
-
-Phrase:
-
-"The warrior entered the battlefield"
-
-Expected completion:
-
-8-12 seconds
-
-Damage:
-
-180
-
-```
+Phrase length: 8-15 words (medium)
+Expected completion: 8-12 seconds
+Effect: 180 damage to opponent team
 
 Gameplay style:
-
 - Reliable damage
 - Balanced choice
 
----
+## 6.3 Paladin
 
-# 6.3 Heavy Attack
+Role: Heavy damage
 
-Purpose:
-
-High commitment attack.
-
-Characteristics:
-
-- Long phrase
-- High damage
-
-Example:
-
-```
-
-Phrase:
-
-"The forgotten kingdom was protected by ancient warriors"
-
-Expected completion:
-
-15-25 seconds
-
-Damage:
-
-350
-
-```
+Phrase length: 15-25 words (long)
+Expected completion: 15-25 seconds
+Effect: 350 damage to opponent team
 
 Gameplay style:
-
 - Risk versus reward
 - Punishes opponents who cannot pressure you
 
----
+## 6.4 Wizard
 
-# 6.4 Ultimate Attack
+Role: Massive burst damage
 
-Purpose:
-
-High-risk finishing attack.
-
-Characteristics:
-
-- Very long phrase
-- Massive damage
-- Vulnerable during charging
-
-Example:
-
-```
-
-Phrase:
-
-"The ancient civilization discovered forgotten secrets beneath the endless mountains"
-
-Expected completion:
-
-25-40 seconds
-
-Damage:
-
-600
-
-```
+Phrase length: 25-40 words (very long)
+Expected completion: 25-40 seconds
+Effect: 600 damage to opponent team
 
 Gameplay style:
-
 - Comeback tool
 - Finishing move
 - High commitment
 
+## 6.5 Cleric
+
+Role: Small heal
+
+Phrase length: 4-8 words (short)
+Expected completion: 3-5 seconds
+Effect: +60 heal to player team
+
+Gameplay style:
+- Quick sustain
+- Defensive momentum
+
+## 6.6 Priest
+
+Role: Medium heal
+
+Phrase length: 8-15 words (medium)
+Expected completion: 8-12 seconds
+Effect: +140 heal to player team
+
+Gameplay style:
+- Reliable sustain
+- Balanced healing
+
+## 6.7 Saint
+
+Role: Large heal
+
+Phrase length: 15-25 words (long)
+Expected completion: 15-25 seconds
+Effect: +280 heal to player team
+
+Gameplay style:
+- High commitment sustain
+- Comeback healing
+
 ---
 
-# 7. Initial Battle Numbers
+# 7. Healing Balance
+
+Healing is intentionally weaker than damage at the same phrase tier.
+
+This prevents infinite stall matches:
+
+| Character   | Tier    | Value  | Damage Equivalent | Ratio  |
+|-------------|---------|--------|-------------------|--------|
+| Cleric      | Short   | +60    | Grunt (80)        | 75%    |
+| Priest      | Medium  | +140   | Archer (180)      | 78%    |
+| Saint       | Long    | +280   | Paladin (350)     | 80%    |
+
+If healing matched or exceeded damage, a player spamming heals would out-sustain any damage pressure, leading to timeout wins for the healer.
+
+At 75-80% efficiency, healing is a tactical choice:
+- Use it when behind on HP
+- Use it to force opponent to commit more damage
+- But you cannot stall indefinitely — you will lose the HP race if you only heal
+
+There is no heal at the Wizard (very long) tier. The highest commitment slot should remain pure damage.
+
+---
+
+# 8. Team Composition
+
+## Draft Phase (Pre-game Lobby)
+
+Before the game starts, each player builds their team:
+
+- Choose 4 characters from the 7 available
+- No duplicates (each character can appear at most once per team)
+- Both players build independently (opponent's team is visible)
+
+## During Battle
+
+- Player clicks a character portrait or presses a shortcut key
+- System generates a random phrase from that character's tier
+- Player types the phrase
+- Character executes their skill immediately on completion
+- Player can freely pick the next character — same or different, no cooldowns
+
+## Strategy
+
+Example team compositions:
+
+**All-out offense:**
+Grunt + Archer + Paladin + Wizard
+Max damage output, no sustain. Win by killing faster.
+
+**Balanced:**
+Grunt + Archer + Paladin + Cleric
+Three damage options with light sustain for recovery.
+
+**Sustain:**
+Archer + Paladin + Cleric + Saint
+Heavy sustain, slower kills. Win by outlasting.
+
+**Fast pressure:**
+Grunt + Grunt (not allowed — no duplicates)
+Instead: Grunt + Archer + Cleric + Priest
+Mix of speed and sustain to maintain constant pressure.
+
+---
+
+# 9. Initial Battle Numbers
 
 Recommended starting values:
 
 ```
-
-Player HP:
-
-1000
-
-```
+Team HP: 1000
 
 Attack values:
+  Grunt:    80 damage  (short phrase)
+  Archer:   180 damage (medium phrase)
+  Paladin:  350 damage (long phrase)
+  Wizard:   600 damage (very long phrase)
 
-```
-
-Quick Attack:
-
-80 damage
-
-Normal Attack:
-
-180 damage
-
-Heavy Attack:
-
-350 damage
-
-Ultimate Attack:
-
-600 damage
-
+Heal values:
+  Cleric:   +60 heal   (short phrase)
+  Priest:   +140 heal  (medium phrase)
+  Saint:    +280 heal  (long phrase)
 ```
 
 Target match duration:
 
 ```
-
 60-120 seconds
-
 ```
 
-Target successful attacks:
+Target successful actions:
 
 ```
-
-5-10 attacks per player
-
+5-10 actions per player
 ```
 
 ---
 
-# 8. Why Ultimate Is Balanced
+# 10. Accuracy System
 
-Ultimate should not be the most efficient attack.
-
-Example:
-
-Quick Attack:
-
-```
-
-80 damage  
-4 seconds
-
-20 damage/second
-
-```
-
-Ultimate:
-
-```
-
-600 damage  
-35 seconds
-
-17 damage/second
-
-```
-
-Ultimate is weaker in efficiency.
-
-Its advantage is burst damage.
-
-Players choose Ultimate because:
-
-- They need a comeback
-- They think they have enough time
-- They want a finishing move
-
----
-
-# 9. Accuracy System
+Unchanged from original design.
 
 Typing speed alone should not determine victory.
 
-Accuracy affects damage.
-
-Formula:
+Accuracy affects damage/heal:
 
 ```
-
 Accuracy = Correct Characters Typed / Total Characters in Phrase
-
-Final Damage = Base Damage × Accuracy
-
+Final Effect = Base Value × Accuracy
 ```
 
 Example:
@@ -452,29 +377,19 @@ Example:
 Fast but inaccurate:
 
 ```
-
 Phrase: "The ancient warrior entered the battlefield" (41 chars)
-
 Correct: 33 chars
-
 Accuracy: 33/41 = 0.80
-
 Damage: 80 × 0.80 = 64
-
 ```
 
 Accurate player:
 
 ```
-
 Phrase: "The ancient warrior entered the battlefield" (41 chars)
-
 Correct: 41 chars
-
 Accuracy: 41/41 = 0.99
-
 Damage: 80 × 0.99 = 79
-
 ```
 
 This rewards:
@@ -483,9 +398,7 @@ This rewards:
 - Precision
 - Consistency
 
----
-
-# 9.1 Error Handling
+## 10.1 Error Handling
 
 When a player types a wrong character:
 
@@ -501,33 +414,23 @@ Rules:
 - No freeze or time penalty beyond the time spent correcting
 - Accuracy is calculated at phrase completion
 
-Example:
-
-```
-
-Phrase: "The sword shines"
-
-Player types: "The swor"
-
-Player presses Backspace twice
-
-Player types: "sword"
-
-Time lost: ~1-2 seconds
-
-Accuracy impact: None if corrected before completion
-
-```
-
 This creates natural pressure:
 
 - Fast typists must be careful
 - Mistakes cost time
 - Accuracy is a choice between speed and precision
 
+## 10.2 Accuracy Floor
+
+Minimum accuracy is 25%.
+
+If a player's accuracy falls below 0.25, it is clamped to 0.25.
+
+This prevents degenerate cases where extremely inaccurate typing produces near-zero effect.
+
 ---
 
-# 10. Difficulty Selection
+# 11. Difficulty Design
 
 The player should not think:
 
@@ -535,228 +438,56 @@ The player should not think:
 
 The player should think:
 
-"What attack should I use?"
+"Which character helps me right now?"
 
-Final naming:
+Each character has a distinct thematic name and role.
 
-```
-
-1 - Quick Attack
-
-2 - Normal Attack
-
-3 - Heavy Attack
-
-4 - Ultimate Attack
+The keys should instantly select the character:
 
 ```
-
-The keys:
-
+1 — Grunt
+2 — Archer
+3 — Paladin
+4 — Wizard
+5 — Cleric
+6 — Priest
+7 — Saint
 ```
-
-1  
-2  
-3  
-4
-
-```
-
-should instantly select the attack.
 
 ---
 
-# 11. Phrase Generation Rules
+# 12. Phrase Generation Rules
 
-Phrases are organized in arrays per attack tier.
+Phrases are organized in arrays per character/tier.
 
-Each tier has its own array of curated phrases.
+Each character has its own array of curated phrases.
 
-When a player selects an attack:
-
-```
-
-System picks a random phrase from the selected tier's array
+When a player selects a character:
 
 ```
-
-Phrase word counts per tier:
-
+System picks a random phrase from that character's array
 ```
 
-Quick:   4-8 words
-
-Normal:  8-15 words
-
-Heavy:   15-25 words
-
-Ultimate: 25-40 words
+Phrase word counts per character:
 
 ```
+Grunt:   4-8 words
+Cleric:  4-8 words
 
-Implementation:
+Archer:  8-15 words
+Priest:  8-15 words
 
-```
+Paladin: 15-25 words
+Saint:   15-25 words
 
-const phrases = {
-
-  quick: [
-
-    "The sword shines bright",
-
-    "Fire burns through darkness",
-
-    "Strike fast and true"
-
-  ],
-
-  normal: [
-
-    "The warrior entered the ancient battlefield with courage",
-
-    "Magic flows through the veins of the forgotten forest"
-
-  ],
-
-  heavy: [
-
-    "The forgotten kingdom was protected by ancient warriors who fought without fear",
-
-    "Darkness spread across the land as the dragon descended from the mountain peaks"
-
-  ],
-
-  ultimate: [
-
-    "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon",
-
-    "When the final battle began the warriors knew there was no turning back from the path they had chosen"
-
-  ]
-
-}
-
-```
-
-Random selection:
-
-```
-
-const tier = attackType // "quick", "normal", "heavy", "ultimate"
-
-const pool = phrases[tier]
-
-const phrase = pool[Math.floor(Math.random() * pool.length)]
-
-```
-
-Each character has their own phrase arrays.
-
-Phrases are themed to match the character's style.
-
-Example for Knight:
-
-```
-
-knight: {
-
-  quick: [
-
-    "The blade catches the light",
-
-    "Steel sings through the air"
-
-  ],
-
-  normal: [
-
-    "The knight raised his sword and charged into battle"
-
-  ]
-
-}
-
+Wizard:  25-40 words
 ```
 
 Phrase difficulty comes from:
 
 - Word count
 - Word complexity
-- Character theme consistency
-
----
-
-# 12. Character System
-
-Characters should initially be cosmetic.
-
-They should not affect gameplay balance.
-
-Each character has:
-
-- Unique visual style
-- Themed phrase arrays per attack tier
-- Attack animations matching their theme
-
-Purpose:
-
-- Visual identity
-- Player attachment
-- Fantasy feeling
-
----
-
-## Knight
-
-Attack style:
-
-- Sword slash
-- Heavy strike
-
-Phrases:
-
-- Battle, sword, honor, courage, steel, shield
-- Medieval combat themes
-
----
-
-## Mage
-
-Attack style:
-
-- Fireball
-- Magic explosion
-
-Phrases:
-
-- Magic, spells, elements, ancient power
-- Arcane and mystical themes
-
----
-
-## Archer
-
-Attack style:
-
-- Arrow projectile
-
-Phrases:
-
-- Wind, precision, forest, nature, speed
-- Ranger and hunter themes
-
----
-
-## Assassin
-
-Attack style:
-
-- Shadow strike
-
-Phrases:
-
-- Shadows, darkness, stealth, poison, night
-- Rogue and infiltration themes
+- Character theme consistency (each character has themed phrases)
 
 ---
 
@@ -771,18 +502,22 @@ Recommended style:
 Example battle layout:
 
 ```
-
 ----------
 
-Player Character
+Player Team
 
-HP:  
-██████████
+HP Bar:  ██████████
 
-Enemy Character
+  [Grunt] [Archer] [Paladin] [Wizard]   ← character portraits
+  (active)                              ← which one is being typed for
 
-HP:  
-██████░░░░
+                    [Timer: 1:45]
+
+Opponent Team
+
+HP Bar:  ██████░░░░
+
+  [Grunt] [Cleric] [Priest] [Saint]    ← shown to player
 
 "The ancient warrior entered..."
 
@@ -791,42 +526,32 @@ Typing Area
 Attack Ready
 
 ----------
-
 ```
+
+The Side-by-Side layout is the same as the original design.
+
+Key difference: HP is a shared team bar, not per-character.
+
+Character portraits show each team's lineup.
+
+The active character (the one being typed for) is highlighted.
 
 ---
 
 # 14. Rendering Architecture
 
-Recommended frontend architecture:
+Current frontend (Next.js + React):
 
-```
+- Lobby
+- UI
+- Character selection
+- HP display
+- Typing area
+- Attack buttons / character portraits
 
-Vue / Nuxt
+This is sufficient for the team battle rework.
 
-Responsible for:
-
--   Lobby
--   UI
--   Menus
--   Player information
-
-```
-
-Game rendering:
-
-```
-
-PixiJS / Phaser
-
-Responsible for:
-
--   Characters
--   Effects
--   Animations
--   Damage visuals
-
-```
+No game engine (PixiJS / Phaser) is needed at this stage.
 
 ---
 
@@ -839,29 +564,17 @@ First prove gameplay.
 Later database structure:
 
 ```
-
 Users
-
-|  
-|  
-Players
-
-|  
-|  
-Characters
-
-|  
-|  
-Match History
-
-|  
-|  
-Ranking
-
-|  
-|  
-Cosmetics
-
+ |
+ Players
+ |
+ Characters
+ |
+ Match History
+ |
+ Ranking
+ |
+ Cosmetics
 ```
 
 ---
@@ -870,23 +583,24 @@ Cosmetics
 
 ---
 
-## Version 0.2 - Combat Upgrade
+## Version 0.3 — Team Battle Rework
 
 Goal:
 
-Improve gameplay.
+Convert single-character combat to team battle.
 
 Tasks:
 
-- Add HP system
-- Add attack selection
-- Add multiple phrases
-- Add damage calculation
-- Add battle ending condition
+- Team selection UI in lobby (pick 4 from 7)
+- Update HP to shared team pool
+- Allow character switching during battle
+- Support heal mechanic
+- Update visual layout for team display
+- Nerf heal values for balance
 
 ---
 
-## Version 0.3 - Visual Upgrade
+## Version 0.4 — Visual Upgrade
 
 Goal:
 
@@ -902,21 +616,21 @@ Tasks:
 
 ---
 
-## Version 0.4 - Player Identity
+## Version 0.5 — Player Identity
 
 Goal:
 
-Make players attached to their characters.
+Make players attached to their teams.
 
 Tasks:
 
-- Character selection
-- Profiles
+- Character selection profiles
+- Player profiles
 - Cosmetic customization
 
 ---
 
-## Version 1.0 - Online Features
+## Version 1.0 — Online Features
 
 Tasks:
 
@@ -928,13 +642,40 @@ Tasks:
 
 ---
 
-# 17. Core Design Rules
+# 17. Future Considerations
+
+## Individual Character HP
+
+Currently using a shared team HP pool.
+
+Individual character HP could add tactical depth:
+
+- Characters knocked out when their HP reaches 0
+- Losing a character reduces team options
+- Healing revives or restores character HP
+- Adds comeback potential
+
+This is deferred. The shared pool is simpler and good enough for initial testing.
+
+## More Characters
+
+The current roster of 7 provides enough variety for 4-character teams.
+
+New characters can be added following the same pattern:
+- Choose a tier (short/medium/long/very long)
+- Assign role (damage or heal)
+- Create themed phrase pool
+- Create sprite
+
+---
+
+# 18. Core Design Rules
 
 Always prioritize:
 
 1. Fun typing experience
 2. Short intense matches
-3. Meaningful choices
+3. Meaningful team choices
 4. Strong visual feedback
 
 Avoid adding complexity unless it improves gameplay.
