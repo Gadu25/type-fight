@@ -64,7 +64,7 @@ func TestCombatClientMessage_SelectAttack(t *testing.T) {
 	msg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	data, err := json.Marshal(msg)
@@ -78,8 +78,8 @@ func TestCombatClientMessage_SelectAttack(t *testing.T) {
 	if decoded.Type != "select_attack" {
 		t.Errorf("Expected type 'select_attack', got '%s'", decoded.Type)
 	}
-	if decoded.SelectAttack.Tier != "quick" {
-		t.Errorf("Expected tier 'quick', got '%s'", decoded.SelectAttack.Tier)
+	if decoded.SelectAttack.Tier != "grunt" {
+		t.Errorf("Expected tier 'grunt', got '%s'", decoded.SelectAttack.Tier)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestCombatServerMessage_OpponentAttack(t *testing.T) {
 		Type: "opponent_attack",
 		OpponentAttack: &OpponentAttackPayload{
 			PlayerID: "player1",
-			Tier:     "heavy",
+			Tier:     "paladin",
 		},
 	}
 	data, err := json.Marshal(msg)
@@ -132,8 +132,8 @@ func TestCombatServerMessage_OpponentAttack(t *testing.T) {
 	if decoded.OpponentAttack.PlayerID != "player1" {
 		t.Errorf("Expected PlayerID 'player1', got '%s'", decoded.OpponentAttack.PlayerID)
 	}
-	if decoded.OpponentAttack.Tier != "heavy" {
-		t.Errorf("Expected Tier 'heavy', got '%s'", decoded.OpponentAttack.Tier)
+	if decoded.OpponentAttack.Tier != "paladin" {
+		t.Errorf("Expected Tier 'paladin', got '%s'", decoded.OpponentAttack.Tier)
 	}
 }
 

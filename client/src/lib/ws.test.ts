@@ -5,7 +5,7 @@ describe('ClientMessage types', () => {
   it('should have select_attack type', () => {
     const msg: ClientMessage = {
       type: 'select_attack',
-      select_attack: { tier: 'quick' }
+      select_attack: { tier: 'grunt' }
     }
     expect(msg.type).toBe('select_attack')
   })
@@ -13,7 +13,7 @@ describe('ClientMessage types', () => {
   it('should have attack_complete type', () => {
     const msg: ClientMessage = {
       type: 'attack_complete',
-      attack_complete: { tier: 'quick', phrase: 'test phrase', correct: 50, total: 60 }
+      attack_complete: { tier: 'grunt', phrase: 'test phrase', correct: 50, total: 60 }
     }
     expect(msg.type).toBe('attack_complete')
   })
@@ -21,7 +21,7 @@ describe('ClientMessage types', () => {
   it('should have switch_attack type', () => {
     const msg: ClientMessage = {
       type: 'switch_attack',
-      switch_attack: { tier: 'heavy' }
+      switch_attack: { tier: 'paladin' }
     }
     expect(msg.type).toBe('switch_attack')
   })
@@ -31,7 +31,7 @@ describe('ServerMessage types', () => {
   it('should have game_setup type', () => {
     const msg: ServerMessage = {
       type: 'game_setup',
-      phrase_pools: { quick: ['phrase1'], normal: ['phrase2'] }
+      phrase_pools: { grunt: ['phrase1'], archer: ['phrase2'] }
     }
     expect(msg.type).toBe('game_setup')
   })

@@ -32,11 +32,15 @@ interface Player {
 const BATTLE_TIME_LIMIT = 120
 
 const attackDefs: Record<string, number> = {
-  quick: 80,
-  normal: 180,
-  heavy: 350,
-  ultimate: 600,
+  grunt: 80,
+  archer: 180,
+  paladin: 350,
+  wizard: 600,
+  cleric: 100,
+  priest: 250,
+  saint: 500,
 }
+
 
 export default function RoomPage() {
   const params = useParams()
@@ -293,6 +297,26 @@ export default function RoomPage() {
       case 'player_defeated':
         break
 
+      case 'heal_update':
+        if (message.heal_update) {
+          if (message.heal_update.playerID === playerId) {
+            setPlayerHP(message.heal_update.hp)
+            {
+              const newId = ++floatIdRef.current
+              setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'player'}])
+              setTimeout(() => setFloatNumbers(prev => prev.filter(n => n.id !== newId)), 1000)
+            }
+          } else {
+            setOpponentHP(message.heal_update.hp)
+            {
+              const newId = ++floatIdRef.current
+              setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'opponent'}])
+              setTimeout(() => setFloatNumbers(prev => prev.filter(n => n.id !== newId)), 1000)
+            }
+          }
+        }
+        break
+
       case 'battle_over':
         if (message.battle_over && !gameOverProcessedRef.current) {
           gameOverProcessedRef.current = true
@@ -407,7 +431,7 @@ export default function RoomPage() {
     setTimeout(() => setGameState('finished'), 600)
   }, [timeLeft, gameState, playerId, playerHP, opponentHP])
 
-  const handleSelectAttack = useCallback((tier: 'quick' | 'normal' | 'heavy' | 'ultimate') => {
+  const handleSelectAttack = useCallback((tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint') => {
     const phrase = getRandomPhrase(tier)
     setCurrentPhrase(phrase)
     setCurrentAttack(tier)
@@ -432,7 +456,7 @@ export default function RoomPage() {
       sendMessage(wsRef.current, {
         type: 'attack_complete',
         attack_complete: {
-          tier: currentAttack as 'quick' | 'normal' | 'heavy' | 'ultimate',
+          tier: currentAttack as 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint',
           phrase: currentPhrase,
           correct: result.correct,
           total: result.total,
@@ -598,23 +622,29 @@ export default function RoomPage() {
                       {currentAttack && (
                         <div className="absolute -top-6 left-0 text-sm font-bold"
                           style={{
-                            color: currentAttack === 'quick' ? '#facc15' :
-                                   currentAttack === 'normal' ? '#9ca3af' :
-                                   currentAttack === 'heavy' ? '#a855f7' : '#ef4444'
+                            color: currentAttack === 'grunt' ? '#ef4444' :
+                                   currentAttack === 'archer' ? '#22c55e' :
+                                   currentAttack === 'paladin' ? '#3b82f6' :
+                                   currentAttack === 'wizard' ? '#a855f7' :
+                                   currentAttack === 'cleric' ? '#10b981' :
+                                   currentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
                           }}
                         >
-                          {currentAttack === 'quick' ? '⚡' :
-                           currentAttack === 'normal' ? '⚔️' :
-                           currentAttack === 'heavy' ? '🛡️' : '💥'}
+                          {currentAttack === 'grunt' ? '⚔️' :
+                           currentAttack === 'archer' ? '🏹' :
+                           currentAttack === 'paladin' ? '🛡️' :
+                           currentAttack === 'wizard' ? '✨' :
+                           currentAttack === 'cleric' ? '💚' :
+                           currentAttack === 'priest' ? '🌀' : '👼'}
                           {' '}{currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'player').map(n => (
                         <div
                           key={n.id}
-                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-red-400"
+                          className={`absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up ${n.damage < 0 ? 'text-emerald-400' : 'text-red-400'}`}
                         >
-                          -{n.damage}
+                          {n.damage < 0 ? `+${-n.damage}` : `-${n.damage}`}
                         </div>
                       ))}
                     </div>
@@ -637,23 +667,29 @@ export default function RoomPage() {
                       {opponentAttack && (
                         <div className="absolute -top-6 right-0 text-sm font-bold"
                           style={{
-                            color: opponentAttack === 'quick' ? '#facc15' :
-                                   opponentAttack === 'normal' ? '#9ca3af' :
-                                   opponentAttack === 'heavy' ? '#a855f7' : '#ef4444'
+                            color: opponentAttack === 'grunt' ? '#ef4444' :
+                                   opponentAttack === 'archer' ? '#22c55e' :
+                                   opponentAttack === 'paladin' ? '#3b82f6' :
+                                   opponentAttack === 'wizard' ? '#a855f7' :
+                                   opponentAttack === 'cleric' ? '#10b981' :
+                                   opponentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
                           }}
                         >
-                          {opponentAttack === 'quick' ? '⚡' :
-                           opponentAttack === 'normal' ? '⚔️' :
-                           opponentAttack === 'heavy' ? '🛡️' : '💥'}
+                          {opponentAttack === 'grunt' ? '⚔️' :
+                           opponentAttack === 'archer' ? '🏹' :
+                           opponentAttack === 'paladin' ? '🛡️' :
+                           opponentAttack === 'wizard' ? '✨' :
+                           opponentAttack === 'cleric' ? '💚' :
+                           opponentAttack === 'priest' ? '🌀' : '👼'}
                           {' '}{opponentAttack.charAt(0).toUpperCase() + opponentAttack.slice(1)}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'opponent').map(n => (
                         <div
                           key={n.id}
-                          className="absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up text-red-400"
+                          className={`absolute top-0 right-0 text-lg font-bold pointer-events-none animate-float-up ${n.damage < 0 ? 'text-emerald-400' : 'text-red-400'}`}
                         >
-                          -{n.damage}
+                          {n.damage < 0 ? `+${-n.damage}` : `-${n.damage}`}
                         </div>
                       ))}
                     </div>

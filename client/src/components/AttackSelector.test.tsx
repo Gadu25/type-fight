@@ -4,32 +4,45 @@ import '@testing-library/jest-dom/vitest'
 import AttackSelector from './AttackSelector'
 
 describe('AttackSelector', () => {
-  it('renders all four attack options', () => {
+  it('renders all seven action options', () => {
     render(<AttackSelector onSelect={vi.fn()} currentAttack="" />)
-    expect(screen.getByText('Quick')).toBeInTheDocument()
-    expect(screen.getByText('Normal')).toBeInTheDocument()
-    expect(screen.getByText('Heavy')).toBeInTheDocument()
-    expect(screen.getByText('Ultimate')).toBeInTheDocument()
+    expect(screen.getByText('Grunt')).toBeInTheDocument()
+    expect(screen.getByText('Archer')).toBeInTheDocument()
+    expect(screen.getByText('Paladin')).toBeInTheDocument()
+    expect(screen.getByText('Wizard')).toBeInTheDocument()
+    expect(screen.getByText('Cleric')).toBeInTheDocument()
+    expect(screen.getByText('Priest')).toBeInTheDocument()
+    expect(screen.getByText('Saint')).toBeInTheDocument()
   })
 
-  it('shows damage values', () => {
+  it('shows damage and heal values', () => {
     render(<AttackSelector onSelect={vi.fn()} currentAttack="" />)
     expect(screen.getByText('80 dmg')).toBeInTheDocument()
     expect(screen.getByText('180 dmg')).toBeInTheDocument()
     expect(screen.getByText('350 dmg')).toBeInTheDocument()
     expect(screen.getByText('600 dmg')).toBeInTheDocument()
+    expect(screen.getByText('+100 hp')).toBeInTheDocument()
+    expect(screen.getByText('+250 hp')).toBeInTheDocument()
+    expect(screen.getByText('+500 hp')).toBeInTheDocument()
   })
 
-  it('calls onSelect when button clicked', () => {
+  it('calls onSelect when attack button clicked', () => {
     const onSelect = vi.fn()
     render(<AttackSelector onSelect={onSelect} currentAttack="" />)
-    fireEvent.click(screen.getByText('Quick'))
-    expect(onSelect).toHaveBeenCalledWith('quick')
+    fireEvent.click(screen.getByText('Grunt'))
+    expect(onSelect).toHaveBeenCalledWith('grunt')
+  })
+
+  it('calls onSelect when heal button clicked', () => {
+    const onSelect = vi.fn()
+    render(<AttackSelector onSelect={onSelect} currentAttack="" />)
+    fireEvent.click(screen.getByText('Cleric'))
+    expect(onSelect).toHaveBeenCalledWith('cleric')
   })
 
   it('highlights current attack', () => {
-    render(<AttackSelector onSelect={vi.fn()} currentAttack="normal" />)
-    const normalButton = screen.getByText('Normal').closest('button')
-    expect(normalButton).toHaveClass('ring-2')
+    render(<AttackSelector onSelect={vi.fn()} currentAttack="archer" />)
+    const archerButton = screen.getByText('Archer').closest('button')
+    expect(archerButton).toHaveClass('ring-2')
   })
 })

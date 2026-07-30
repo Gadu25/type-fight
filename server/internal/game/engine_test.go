@@ -141,29 +141,29 @@ func TestCalculateDamage_LowAccuracy(t *testing.T) {
 	}
 }
 
-func TestGetAttackDef_Quick(t *testing.T) {
-	def := GetAttackDef("quick")
+func TestGetAttackDef_Grunt(t *testing.T) {
+	def := GetAttackDef("grunt")
 	if def.Damage != 80 {
 		t.Errorf("Expected damage 80, got %d", def.Damage)
 	}
 }
 
-func TestGetAttackDef_Normal(t *testing.T) {
-	def := GetAttackDef("normal")
+func TestGetAttackDef_Archer(t *testing.T) {
+	def := GetAttackDef("archer")
 	if def.Damage != 180 {
 		t.Errorf("Expected damage 180, got %d", def.Damage)
 	}
 }
 
-func TestGetAttackDef_Heavy(t *testing.T) {
-	def := GetAttackDef("heavy")
+func TestGetAttackDef_Paladin(t *testing.T) {
+	def := GetAttackDef("paladin")
 	if def.Damage != 350 {
 		t.Errorf("Expected damage 350, got %d", def.Damage)
 	}
 }
 
-func TestGetAttackDef_Ultimate(t *testing.T) {
-	def := GetAttackDef("ultimate")
+func TestGetAttackDef_Wizard(t *testing.T) {
+	def := GetAttackDef("wizard")
 	if def.Damage != 600 {
 		t.Errorf("Expected damage 600, got %d", def.Damage)
 	}

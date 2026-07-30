@@ -89,13 +89,14 @@ type PlayerLeftPayload struct {
 
 // Combat Server -> Client messages
 type CombatServerMessage struct {
-	Type         string                `json:"type"`
-	HpUpdate     *HpUpdatePayload      `json:"hp_update,omitempty"`
+	Type           string                 `json:"type"`
+	HpUpdate       *HpUpdatePayload       `json:"hp_update,omitempty"`
+	HealUpdate     *HealUpdatePayload     `json:"heal_update,omitempty"`
 	PlayerDefeated *PlayerDefeatedPayload `json:"player_defeated,omitempty"`
-	BattleOver   *BattleOverPayload    `json:"battle_over,omitempty"`
-	GameStart    *GameStartPayload     `json:"game_start,omitempty"`
-	PlayerLeft     *PlayerLeftPayload      `json:"player_left,omitempty"`
-	OpponentAttack *OpponentAttackPayload  `json:"opponent_attack,omitempty"`
+	BattleOver     *BattleOverPayload     `json:"battle_over,omitempty"`
+	GameStart      *GameStartPayload      `json:"game_start,omitempty"`
+	PlayerLeft     *PlayerLeftPayload     `json:"player_left,omitempty"`
+	OpponentAttack *OpponentAttackPayload `json:"opponent_attack,omitempty"`
 }
 
 type HpUpdatePayload struct {
@@ -103,6 +104,12 @@ type HpUpdatePayload struct {
 	HP       int    `json:"hp"`
 	Attacker string `json:"attacker"`
 	Damage   int    `json:"damage"`
+}
+
+type HealUpdatePayload struct {
+	PlayerID string `json:"playerID"`
+	HP       int    `json:"hp"`
+	Heal     int    `json:"heal"`
 }
 
 type PlayerDefeatedPayload struct {
