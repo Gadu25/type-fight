@@ -139,7 +139,7 @@ const handleReady = useCallback(() => {
 - `CompleteAttack(playerID, tier, ...)` — after the existing `CurrentAttack == tier` check, reject if `tier ∉ player.Team` (defense in depth).
 - `StartGame(roomID, playerID)` — add validation: every player in the room must have a valid team, else error `"all players must pick a team"`. (Covers the host, whose Start isn't otherwise team-checked.)
 - `ResetRoom` — do **not** clear `Team` (loadout persists across rematches).
-- `RemovePlayer` result and `Room.GetRoomInfo`/`GetPlayerName` player info — include `Team` in any `PlayerInfo` construction.
+- `RemovePlayer` result and `Room.GetRoomInfo` — include `Team` in any `PlayerInfo` construction.
 
 ## 5.2 `server/internal/ws/protocol.go`
 
@@ -171,6 +171,7 @@ const handleReady = useCallback(() => {
 
 - `Player` interface gains `team?: Team`.
 - `player_list` / `player_joined` / `game_start` / `player_left` handlers: preserve the `team` field when mapping into `players` state.
+- **Opponent team source:** `handleReady` does not re-broadcast `player_list`, so the committed team arrives via **`game_start`** (which carries teams per §5.2). `game_start` is the authoritative source for the opponent's battle team; `player_list`/`player_joined` values are best-effort (may be stale/empty).
 - Derive `const opponentTeam: Team = opponentPlayer?.team ?? []`.
 - `BattleStage` call: `opponentTeam={opponentTeam}` (replaces `DEFAULT_TEAM` import), drop `running` prop.
 - `AttackSelector` gets `team={playerTeam}`.
