@@ -25,6 +25,24 @@ describe('ClientMessage types', () => {
     }
     expect(msg.type).toBe('switch_attack')
   })
+
+  it('should have ready type with team', () => {
+    const msg: ClientMessage = {
+      type: 'ready',
+      team: ['grunt', 'archer', 'paladin', 'wizard']
+    }
+    expect(msg.type).toBe('ready')
+    expect(msg.team).toHaveLength(4)
+  })
+
+  it('should have start_game type with team', () => {
+    const msg: ClientMessage = {
+      type: 'start_game',
+      team: ['grunt', 'archer', 'paladin', 'wizard']
+    }
+    expect(msg.type).toBe('start_game')
+    expect(msg.team).toHaveLength(4)
+  })
 })
 
 describe('ServerMessage types', () => {
@@ -75,6 +93,47 @@ describe('ServerMessage types', () => {
     }
     expect(msg.type).toBe('game_start')
     expect(msg.players).toHaveLength(2)
+  })
+
+  it('should have player_joined type with player info including team', () => {
+    const msg: ServerMessage = {
+      type: 'player_joined',
+      player: {
+        id: 'p1',
+        name: 'Alice',
+        ready: false,
+        isHost: false,
+        team: ['grunt', 'archer', 'paladin', 'wizard']
+      }
+    }
+    expect(msg.type).toBe('player_joined')
+    expect(msg.player.team).toHaveLength(4)
+  })
+
+  it('should have game_start type with players including team', () => {
+    const msg: ServerMessage = {
+      type: 'game_start',
+      players: [
+        { id: 'p1', name: 'Alice', team: ['grunt', 'archer', 'paladin', 'wizard'] },
+        { id: 'p2', name: 'Bob', team: ['grunt', 'archer', 'paladin', 'wizard'] }
+      ],
+      text: 'The quick brown fox'
+    }
+    expect(msg.type).toBe('game_start')
+    expect(msg.players[0].team).toHaveLength(4)
+  })
+
+  it('should have player_left type with players including team', () => {
+    const msg: ServerMessage = {
+      type: 'player_left',
+      player_left: {
+        playerID: 'p2',
+        new_host_id: 'p1',
+        players: [{ id: 'p1', name: 'Alice', team: ['grunt', 'archer', 'paladin', 'wizard'] }]
+      }
+    }
+    expect(msg.type).toBe('player_left')
+    expect(msg.player_left.players[0].team).toHaveLength(4)
   })
 
   it('should have player_ready type with ready_player_id', () => {

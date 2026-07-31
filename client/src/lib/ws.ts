@@ -1,3 +1,5 @@
+import type { Tier } from './words'
+
 export interface PlayerInfo {
   id: string
   name: string
@@ -5,6 +7,7 @@ export interface PlayerInfo {
   isHost: boolean
   hp?: number
   isAlive?: boolean
+  team?: Tier[]
 }
 
 export interface ResultInfo {
@@ -17,17 +20,17 @@ export interface ResultInfo {
 
 export type ClientMessage =
   | { type: 'join'; player_name: string }
-  | { type: 'ready' }
-  | { type: 'start_game' }
-  | { type: 'select_attack'; select_attack: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint' } }
-  | { type: 'attack_complete'; attack_complete: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'; phrase: string; correct: number; total: number } }
-  | { type: 'switch_attack'; switch_attack: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint' } }
+  | { type: 'ready'; team: Tier[] }
+  | { type: 'start_game'; team: Tier[] }
+  | { type: 'select_attack'; select_attack: { tier: Tier } }
+  | { type: 'attack_complete'; attack_complete: { tier: Tier; phrase: string; correct: number; total: number } }
+  | { type: 'switch_attack'; switch_attack: { tier: Tier } }
   | { type: 'play_again' }
 
 export type ServerMessage =
   | { type: 'player_list'; players: PlayerInfo[]; host_id?: string; your_player_id?: string }
   | { type: 'player_joined'; player: PlayerInfo }
-  | { type: 'game_start'; players: { id: string; name: string }[]; text: string; host_id?: string }
+  | { type: 'game_start'; players: { id: string; name: string; team?: Tier[] }[]; text: string; host_id?: string }
   | { type: 'progress'; player_id: string; position: number; wpm: number }
   | { type: 'player_finished'; player_finished: PlayerInfo }
   | { type: 'player_ready'; ready_player_id: string }
@@ -39,7 +42,7 @@ export type ServerMessage =
   | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }
   | { type: 'player_defeated'; player_defeated: { playerID: string } }
   | { type: 'battle_over'; battle_over: { winner: string; reason: string } }
-  | { type: 'player_left'; player_left: { playerID: string; new_host_id?: string; players: { id: string; name: string }[] } }
+  | { type: 'player_left'; player_left: { playerID: string; new_host_id?: string; players: { id: string; name: string; team?: Tier[] }[] } }
   | { type: 'opponent_attack'; opponent_attack: { playerID: string; tier: string } }
   | { type: 'heal_update'; heal_update: { playerID: string; hp: number; heal: number } }
 

@@ -477,17 +477,17 @@ export default function RoomPage() {
   }, [currentAttack, currentPhrase])
 
   const handleReady = useCallback(() => {
-    if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'ready' })
+    if (wsRef.current && playerTeam.length === 4) {
+      sendMessage(wsRef.current, { type: 'ready', team: playerTeam })
       setIsReady(true)
     }
-  }, [])
+  }, [playerTeam])
 
   const handleStartGame = useCallback(() => {
-    if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'start_game' })
+    if (wsRef.current && playerTeam.length === 4) {
+      sendMessage(wsRef.current, { type: 'start_game', team: playerTeam })
     }
-  }, [])
+  }, [playerTeam])
 
   const handlePlayAgain = useCallback(() => {
     if (wsRef.current) {
