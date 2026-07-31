@@ -4,8 +4,8 @@ import { describe, it, expect } from 'vitest';
 import PlayerList from './PlayerList';
 
 const mockPlayers = [
-  { id: 'player1', name: 'Alice' },
-  { id: 'player2', name: 'Bob' },
+  { id: 'player1', name: 'Alice', ready: true, isHost: true },
+  { id: 'player2', name: 'Bob', ready: false, isHost: false },
 ];
 
 describe('PlayerList', () => {
@@ -42,6 +42,7 @@ describe('PlayerList', () => {
         currentPlayerId="player1"
         gameStatus="lobby"
         opponentReady={true}
+        teamComplete={true}
       />
     );
     expect(screen.getByText('Start Game')).toBeInTheDocument();
@@ -68,9 +69,35 @@ describe('PlayerList', () => {
         hostId="player1"
         currentPlayerId="player2"
         gameStatus="lobby"
+        teamComplete={true}
       />
     );
     expect(screen.getByText('Ready')).toBeInTheDocument();
+  });
+
+  it('shows a team prompt instead of Ready when the team is incomplete', () => {
+    render(
+      <PlayerList
+        players={mockPlayers}
+        hostId="player1"
+        currentPlayerId="player2"
+        gameStatus="lobby"
+      />
+    );
+    expect(screen.getByText('Pick a team first')).toBeInTheDocument();
+  });
+
+  it('disables Start Game until the host team is complete', () => {
+    render(
+      <PlayerList
+        players={mockPlayers}
+        hostId="player1"
+        currentPlayerId="player1"
+        gameStatus="lobby"
+        opponentReady={true}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Start Game/ })).toBeDisabled();
   });
 
   it('does not show Start Game button when not in lobby', () => {
