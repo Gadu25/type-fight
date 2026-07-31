@@ -38,6 +38,18 @@ describe('TeamPicker', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('shows a single idle frame instead of a squished strip', () => {
+    render(<TeamPicker team={[]} onChange={vi.fn()} />)
+    const imgs = screen.getAllByRole('img')
+    expect(imgs).toHaveLength(7)
+    for (const img of imgs) {
+      Object.defineProperty(img, 'naturalWidth', { value: 768, configurable: true })
+      fireEvent.load(img)
+    }
+    expect(imgs[0]).toHaveStyle('width: 312px')
+    expect(imgs[0]).toHaveStyle('transform: translateX(0px)')
+  })
+
   it('shows order badges for selected characters', () => {
     render(<TeamPicker team={['cleric', 'grunt'] as Team} onChange={vi.fn()} />)
     expect(screen.getByText('1')).toBeInTheDocument()

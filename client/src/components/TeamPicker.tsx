@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
 import { TIERS } from '@/lib/tiers'
 import { CHARACTER_ANIMATIONS } from '@/lib/characterSprites'
+import SpriteAnimator from '@/components/battle/SpriteAnimator'
 
 interface TeamPickerProps {
   team: Team
@@ -49,13 +49,12 @@ export default function TeamPicker({ team, onChange, disabled }: TeamPickerProps
                   {order + 1}
                 </span>
               )}
-              <Image
+              <SpriteAnimator
                 src={CHARACTER_ANIMATIONS[c.tier].idle.src}
                 alt={c.name}
-                width={52}
-                height={62}
-                unoptimized
-                className="select-none"
+                height={52}
+                duration={999999}
+                mode="hold"
               />
               <div className="text-xs font-bold mt-1">{c.name}</div>
               <div className="text-xs text-gray-400">{c.isHeal ? `+${c.value} hp` : `${c.value} dmg`}</div>
