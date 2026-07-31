@@ -3,7 +3,8 @@
 import Image from 'next/image'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
-import { TIERS, getSpritePath } from '@/lib/tiers'
+import { TIERS } from '@/lib/tiers'
+import { CHARACTER_ANIMATIONS } from '@/lib/characterSprites'
 
 interface TeamPickerProps {
   team: Team
@@ -49,7 +50,7 @@ export default function TeamPicker({ team, onChange, disabled }: TeamPickerProps
                 </span>
               )}
               <Image
-                src={getSpritePath(c.tier)}
+                src={CHARACTER_ANIMATIONS[c.tier].idle.src}
                 alt={c.name}
                 width={52}
                 height={62}

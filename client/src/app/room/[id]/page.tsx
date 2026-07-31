@@ -12,7 +12,7 @@ import ProfilePanel from '@/components/ProfilePanel'
 import ProfileToggle from '@/components/ProfileToggle'
 import NamePromptModal from '@/components/NamePromptModal'
 import Toast from '@/components/Toast'
-import AttackSelector from '@/components/AttackSelector'
+import AttackHotkeys from '@/components/battle/AttackHotkeys'
 import HealthBar from '@/components/HealthBar'
 import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
@@ -557,6 +557,8 @@ export default function RoomPage() {
               activePlayerTier={(currentAttack as Tier) || null}
               activeOpponentTier={(opponentAttack as Tier) || null}
               cameraMode={cameraMode}
+              playerHP={playerHP}
+              opponentHP={opponentHP}
             />
           </div>
         )}
@@ -740,15 +742,13 @@ export default function RoomPage() {
         </div>
 
         {(gameState === 'countdown' || gameState === 'playing') && (
-          <div className="mt-6 flex justify-center">
-            <div className="rounded-xl border border-gray-700/40 bg-black/40 backdrop-blur-sm p-3">
-              <AttackSelector
-                onSelect={handleSelectAttack}
-                currentAttack={currentAttack}
-                disabled={gameState !== 'playing'}
-                team={playerTeam}
-              />
-            </div>
+          <div className="fixed bottom-4 right-4 z-20">
+            <AttackHotkeys
+              team={playerTeam}
+              currentAttack={currentAttack}
+              onSelect={handleSelectAttack}
+              disabled={gameState !== 'playing'}
+            />
           </div>
         )}
       </div>

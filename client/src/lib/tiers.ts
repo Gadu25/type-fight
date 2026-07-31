@@ -25,15 +25,7 @@ export const TIER_MAP: Record<Tier, TierInfo> = Object.fromEntries(
   TIERS.map(info => [info.tier, info]),
 ) as Record<Tier, TierInfo>
 
-export const SPRITE_MAP: Record<Tier, string> = Object.fromEntries(
-  TIERS.map(info => [info.tier, `/sprites/${info.tier}_idle.svg`]),
-) as Record<Tier, string>
-
 export function getTierInfo(tier: string | null | undefined): TierInfo | undefined {
   if (!tier) return undefined
   return TIER_MAP[tier as Tier]
-}
-
-export function getSpritePath(tier: Tier, state: 'idle' | 'attack' = 'idle'): string {
-  return `/sprites/${tier}_${state}.svg`
 }
