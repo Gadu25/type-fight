@@ -138,7 +138,7 @@ Speeds are the far-to-near curve (sky static, foreground fastest) and can be tun
 
 **Controls:**
 
-- The loop runs only while `gameState` is `countdown`/`playing` (paused otherwise).
+- `ParallaxScene` accepts a `running: boolean` prop; the loop advances only while true. `page.tsx` sets it based on `gameState` (`countdown`/`playing`).
 - rAF auto-pauses in background tabs for free.
 
 **Crop behavior:** with `object-cover`, landscape art crops vertically; `anchor` picks which part stays visible (`top` keeps the sky, `bottom` keeps the ground where fighters stand). On different aspect ratios the art re-crops automatically; fighter spots are relative so they stay on the ground.
@@ -158,7 +158,7 @@ Both changes animate via CSS `transition: transform 500ms cubic-bezier(.22,.9,.3
 
 **Trigger mapping** (wired in `page.tsx`):
 
-- **Zoom in:** `handleSelectAttack` (number key or click) → `playerFocused`, origin at the selected fighter's spot in the player team. If the selected tier is not in the displayed team (possible until team selection exists), fall back to the team's center spot.
+- **Zoom in:** `handleSelectAttack` (number key or click) → `playerFocused`, origin at the selected fighter's spot in the player team. If the selected tier is not in the displayed team (possible until team selection exists), fall back to the center-most fighter's spot (the 2nd of the 4-fighter row).
 - **Zoom out:** the moment the user actually starts typing → back to `wide`. `TypingArea` gains a small `onStartTyping` callback that fires on the first keystroke (additive; does not change existing behavior).
 
 **Coexistence with parallax:** the camera wraps the parallax tracks, so layer pan transforms are nested inside the camera transform — they compose naturally. The rAF loop keeps running; zooming crops the edges like a real camera move.
