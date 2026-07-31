@@ -280,9 +280,12 @@ func TestCompleteAttack_RejectsTierNotInTeam(t *testing.T) {
 		}
 	}
 	room.Players[player1ID].CurrentAttack = "wizard"
-	_, err := rm.CompleteAttack(player1ID, "wizard", "The ancient civilization discovered forgotten secrets", 100, 100)
+	_, err := rm.CompleteAttack(player1ID, "wizard", "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon", 100, 100)
 	if err == nil {
-		t.Error("expected error for tier not in team")
+		t.Fatal("expected error for tier not in team")
+	}
+	if err.Error() != "attack tier not in your team" {
+		t.Errorf("expected error 'attack tier not in your team', got %q", err.Error())
 	}
 }
 
