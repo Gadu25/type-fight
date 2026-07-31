@@ -24,6 +24,7 @@ export default function SpriteAnimator({ src, alt, height = 128, duration, mode,
 
   useEffect(() => {
     setFrameIndex(0)
+    setFrameCount(0)
     firedRef.current = false
   }, [src])
 

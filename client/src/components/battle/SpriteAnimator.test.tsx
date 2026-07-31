@@ -34,6 +34,14 @@ describe('SpriteAnimator', () => {
     expect(screen.getByAltText('Grunt')).toHaveStyle('width: 640px')
   })
 
+  it('resets the frame count when the src changes', () => {
+    const { rerender } = render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
+    loadImage('Grunt', 640)
+    expect(screen.getByAltText('Grunt')).toHaveStyle('width: 640px')
+    rerender(<SpriteAnimator src="/sprites/grunt/attack1.png" alt="Grunt" duration={700} mode="once" />)
+    expect(screen.getByAltText('Grunt')).toHaveStyle('width: 128px')
+  })
+
   it('uses a single frame width when the image is sub-frame', () => {
     render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
     loadImage('Grunt', 100)
