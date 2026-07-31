@@ -492,6 +492,10 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 			room.mu.Unlock()
 			continue
 		}
+		if !containsTier(player.Team, tier) {
+			room.mu.Unlock()
+			return fmt.Errorf("attack tier not in your team")
+		}
 		player.CurrentAttack = tier
 		room.mu.Unlock()
 		return nil
@@ -526,6 +530,10 @@ func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, to
 		if attacker.CurrentAttack != tier {
 			room.mu.Unlock()
 			return nil, fmt.Errorf("attack tier mismatch")
+		}
+		if !containsTier(attacker.Team, tier) {
+			room.mu.Unlock()
+			return nil, fmt.Errorf("attack tier not in your team")
 		}
 
 		def := GetAttackDef(tier)
@@ -613,6 +621,10 @@ func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 		if !exists {
 			room.mu.Unlock()
 			continue
+		}
+		if !containsTier(player.Team, newTier) {
+			room.mu.Unlock()
+			return fmt.Errorf("attack tier not in your team")
 		}
 		player.CurrentAttack = newTier
 		room.mu.Unlock()

@@ -256,6 +256,7 @@ func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -307,6 +308,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -390,6 +392,7 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -454,6 +457,7 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
@@ -516,6 +520,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
@@ -589,6 +594,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	// Note: direct field access in tests is fine; data race acceptable in test code
 	room = rm.GetRoom(room.ID)
 	room.Players["host1"].HP = 400
+	room.Players["player1"].Team = []string{"wizard", "grunt", "archer", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: p2Conn, RoomID: room.ID, PlayerID: "player1"})

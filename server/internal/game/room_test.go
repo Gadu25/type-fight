@@ -9,6 +9,10 @@ func setupTestRoom() (*RoomManager, string, string) {
 	room := rm.CreateRoom("player1-id", "Player1")
 	rm.JoinRoom(room.ID, "player1-id", "Player1")
 	rm.JoinRoom(room.ID, "player2-id", "Player2")
+	room = rm.GetRoom(room.ID)
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	room.Players["player1-id"].Team = team
+	room.Players["player2-id"].Team = team
 	rm.StartGame(room.ID, "player1-id")
 	return rm, room.ID, "player2-id"
 }
@@ -103,6 +107,7 @@ func TestCheckBattleEnd_Defeat(t *testing.T) {
 			break
 		}
 	}
+	room.Players[player1ID].Team = []string{"wizard", "grunt", "archer", "cleric"}
 	rm.SelectAttack(player1ID, "wizard")
 	rm.CompleteAttack(player1ID, "wizard", "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon", 100, 100)
 	rm.SelectAttack(player1ID, "wizard")
@@ -224,5 +229,59 @@ func TestSetPlayerReady_AllReady(t *testing.T) {
 	}
 	if !allReady {
 		t.Error("expected all ready")
+	}
+}
+
+func TestSelectAttack_RejectsTierNotInTeam(t *testing.T) {
+	rm, roomID, _ := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var playerID string
+	for id := range room.Players {
+		playerID = id
+		break
+	}
+	err := rm.SelectAttack(playerID, "wizard")
+	if err == nil {
+		t.Error("expected error for tier not in team")
+	}
+	room = rm.GetRoom(roomID)
+	if room.Players[playerID].CurrentAttack != "" {
+		t.Errorf("expected no active attack, got %s", room.Players[playerID].CurrentAttack)
+	}
+}
+
+func TestSwitchAttack_RejectsTierNotInTeam(t *testing.T) {
+	rm, roomID, _ := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var playerID string
+	for id := range room.Players {
+		playerID = id
+		break
+	}
+	rm.SelectAttack(playerID, "grunt")
+	err := rm.SwitchAttack(playerID, "wizard")
+	if err == nil {
+		t.Error("expected error for tier not in team")
+	}
+	room = rm.GetRoom(roomID)
+	if room.Players[playerID].CurrentAttack != "grunt" {
+		t.Errorf("expected attack to remain 'grunt', got %s", room.Players[playerID].CurrentAttack)
+	}
+}
+
+func TestCompleteAttack_RejectsTierNotInTeam(t *testing.T) {
+	rm, roomID, player2ID := setupTestRoom()
+	room := rm.GetRoom(roomID)
+	var player1ID string
+	for id := range room.Players {
+		if id != player2ID {
+			player1ID = id
+			break
+		}
+	}
+	room.Players[player1ID].CurrentAttack = "wizard"
+	_, err := rm.CompleteAttack(player1ID, "wizard", "The ancient civilization discovered forgotten secrets", 100, 100)
+	if err == nil {
+		t.Error("expected error for tier not in team")
 	}
 }
