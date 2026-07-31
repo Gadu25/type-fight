@@ -71,7 +71,7 @@ func GetRandomPhrase(tier string) string {
 }
 
 func GetRandomText() string {
-	return GetRandomPhrase("normal")
+	return GetRandomPhrase("archer")
 }
 
 func GetPhrasePools() map[string][]string {
