@@ -28,12 +28,14 @@ describe('ClientMessage types', () => {
 })
 
 describe('ServerMessage types', () => {
-  it('should have game_setup type', () => {
+  it('should have game_setup type with battleground', () => {
     const msg: ServerMessage = {
       type: 'game_setup',
-      phrase_pools: { grunt: ['phrase1'], archer: ['phrase2'] }
+      phrase_pools: { grunt: ['phrase1'], archer: ['phrase2'] },
+      battleground: 'battleground1'
     }
     expect(msg.type).toBe('game_setup')
+    expect(msg.battleground).toBe('battleground1')
   })
 
   it('should have hp_update type', () => {

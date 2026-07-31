@@ -73,6 +73,7 @@ export default function RoomPage() {
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
+  const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -211,6 +212,7 @@ export default function RoomPage() {
         if (message.phrase_pools) {
           phrasePoolsRef.current = message.phrase_pools
         }
+        setBattlegroundId(message.battleground || null)
         break
 
       case 'opponent_attack':

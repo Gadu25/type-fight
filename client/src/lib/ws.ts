@@ -35,7 +35,7 @@ export type ServerMessage =
   | { type: 'return_to_lobby'; return_to_lobby: boolean }
   | { type: 'game_over'; results: ResultInfo[]; winner: string }
   | { type: 'error'; error: { message: string } }
-  | { type: 'game_setup'; phrase_pools: Record<string, string[]> }
+  | { type: 'game_setup'; phrase_pools: Record<string, string[]>; battleground?: string }
   | { type: 'hp_update'; hp_update: { playerID: string; hp: number; attacker: string; damage: number } }
   | { type: 'player_defeated'; player_defeated: { playerID: string } }
   | { type: 'battle_over'; battle_over: { winner: string; reason: string } }
