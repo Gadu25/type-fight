@@ -20,6 +20,8 @@ function renderStage(overrides: Record<string, unknown> = {}) {
       opponentHP={1000}
       playerAttackKey={0}
       opponentAttackKey={0}
+      playerHealKey={0}
+      opponentHealKey={0}
       {...overrides}
     />,
   )
@@ -62,6 +64,8 @@ describe('BattleStage', () => {
         opponentHP={1000}
         playerAttackKey={1}
         opponentAttackKey={0}
+        playerHealKey={0}
+        opponentHealKey={0}
       />,
     )
     const gruntImages = screen.getAllByAltText('grunt')
@@ -95,6 +99,8 @@ describe('BattleStage', () => {
           opponentHP={1000}
           playerAttackKey={0}
           opponentAttackKey={1}
+          playerHealKey={0}
+          opponentHealKey={0}
         />,
       )
       loadAllImages()
@@ -124,10 +130,60 @@ describe('BattleStage', () => {
         cameraMode="wide"
         playerHP={600}
         opponentHP={1000}
+        playerAttackKey={0}
+        opponentAttackKey={0}
+        playerHealKey={0}
+        opponentHealKey={0}
       />,
     )
     const hurtImages = screen.getAllByRole('img').filter(img => /\/hurt\.png/.test(img.getAttribute('src') || ''))
     expect(hurtImages).toHaveLength(4)
+  })
+
+  it('shows a hit effect over ALL player fighters when player HP drops', () => {
+    const { rerender } = renderStage()
+    loadAllImages()
+    rerender(
+      <BattleStage
+        battleground={BATTLEGROUNDS.battleground1}
+        playerTeam={TEAM_4}
+        opponentTeam={TEAM_4}
+        activePlayerTier={null}
+        activeOpponentTier={null}
+        cameraMode="wide"
+        playerHP={600}
+        opponentHP={1000}
+        playerAttackKey={0}
+        opponentAttackKey={0}
+        playerHealKey={0}
+        opponentHealKey={0}
+      />,
+    )
+    const hitImages = screen.getAllByRole('img').filter(img => img.getAttribute('src') === '/effects/hit.png')
+    expect(hitImages).toHaveLength(4)
+  })
+
+  it('shows a heal effect over ALL opponent fighters when opponentHealKey changes', () => {
+    const { rerender } = renderStage()
+    loadAllImages()
+    rerender(
+      <BattleStage
+        battleground={BATTLEGROUNDS.battleground1}
+        playerTeam={TEAM_4}
+        opponentTeam={TEAM_4}
+        activePlayerTier={null}
+        activeOpponentTier={null}
+        cameraMode="wide"
+        playerHP={1000}
+        opponentHP={1000}
+        playerAttackKey={0}
+        opponentAttackKey={0}
+        playerHealKey={0}
+        opponentHealKey={1}
+      />,
+    )
+    const healImages = screen.getAllByRole('img').filter(img => img.getAttribute('src') === '/effects/heal.png')
+    expect(healImages).toHaveLength(4)
   })
 
   it('plays dead on ALL opponent fighters when opponent HP reaches 0', () => {
@@ -143,6 +199,10 @@ describe('BattleStage', () => {
         cameraMode="wide"
         playerHP={1000}
         opponentHP={0}
+        playerAttackKey={0}
+        opponentAttackKey={0}
+        playerHealKey={0}
+        opponentHealKey={0}
       />,
     )
     const deadImages = screen.getAllByRole('img').filter(img => /\/dead\.png/.test(img.getAttribute('src') || ''))

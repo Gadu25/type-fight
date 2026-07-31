@@ -33,7 +33,7 @@ describe('characterSprites', () => {
   })
 
   it('getMaxHurtDuration returns the max hurt duration across the team', () => {
-    expect(getMaxHurtDuration(['grunt', 'archer', 'paladin', 'cleric'])).toBe(400)
-    expect(getMaxHurtDuration([])).toBe(400)
+    expect(getMaxHurtDuration(['grunt', 'archer', 'paladin', 'cleric'])).toBe(550)
+    expect(getMaxHurtDuration([])).toBe(550)
   })
 })

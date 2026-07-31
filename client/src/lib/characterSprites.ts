@@ -15,7 +15,7 @@ export interface CharacterAnimation {
 
 const sheet = (tier: Tier, state: 'idle' | 'attack1' | 'attack2' | 'hurt' | 'dead'): Sheet => ({
   src: `/sprites/${tier}/${state}.png`,
-  duration: state === 'idle' ? 2000 : state === 'attack1' || state === 'attack2' ? 700 : state === 'hurt' ? 400 : 900,
+  duration: state === 'idle' ? 2000 : state === 'attack1' || state === 'attack2' ? 700 : state === 'hurt' ? 550 : 900,
 })
 
 export const CHARACTER_ANIMATIONS: Record<Tier, CharacterAnimation> = {
@@ -79,6 +79,6 @@ export function getAttackDuration(tier: Tier): number {
 }
 
 export function getMaxHurtDuration(team: Tier[]): number {
-  if (team.length === 0) return 400
+  if (team.length === 0) return 550
   return Math.max(...team.map(t => CHARACTER_ANIMATIONS[t].hurt.duration))
 }

@@ -5,6 +5,7 @@ import type { Battleground, FighterSpot } from '@/lib/battlegrounds'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
 import { CHARACTER_ANIMATIONS, getMaxHurtDuration, getRandomAttackAnim, type Sheet } from '@/lib/characterSprites'
+import { EFFECTS, type EffectKind } from '@/lib/effects'
 import ParallaxScene from './ParallaxScene'
 import BattleCamera from './BattleCamera'
 import SpriteAnimator from './SpriteAnimator'
@@ -22,6 +23,8 @@ interface BattleStageProps {
   opponentHP: number
   playerAttackKey: number
   opponentAttackKey: number
+  playerHealKey: number
+  opponentHealKey: number
 }
 
 type AnimKind = 'idle' | 'attack' | 'hurt' | 'dead'
@@ -141,6 +144,8 @@ export default function BattleStage({
   opponentHP,
   playerAttackKey,
   opponentAttackKey,
+  playerHealKey,
+  opponentHealKey,
 }: BattleStageProps) {
   const focus = resolveFocusSpot(battleground, playerTeam, activePlayerTier, cameraMode)
 
@@ -162,6 +167,10 @@ export default function BattleStage({
   const [opponentHurtKey, setOpponentHurtKey] = useState(0)
   const [playerHurtActive, setPlayerHurtActive] = useState(false)
   const [opponentHurtActive, setOpponentHurtActive] = useState(false)
+  const [playerEffect, setPlayerEffect] = useState<{ kind: EffectKind; key: number } | null>(null)
+  const [opponentEffect, setOpponentEffect] = useState<{ kind: EffectKind; key: number } | null>(null)
+  const prevPlayerHealKeyRef = useRef(playerHealKey)
+  const prevOpponentHealKeyRef = useRef(opponentHealKey)
 
   useEffect(() => {
     const prev = prevPlayerHPRef.current
@@ -169,10 +178,11 @@ export default function BattleStage({
     if (playerHP < prev) {
       setPlayerHurtActive(true)
       setPlayerHurtKey(k => k + 1)
+      setPlayerEffect({ kind: 'hit', key: playerHurtKey + 1 })
       const t = setTimeout(() => setPlayerHurtActive(false), getMaxHurtDuration(playerTeam))
       return () => clearTimeout(t)
     }
-  }, [playerHP, playerTeam])
+  }, [playerHP, playerTeam, playerHurtKey])
 
   useEffect(() => {
     const prev = prevOpponentHPRef.current
@@ -180,10 +190,59 @@ export default function BattleStage({
     if (opponentHP < prev) {
       setOpponentHurtActive(true)
       setOpponentHurtKey(k => k + 1)
+      setOpponentEffect({ kind: 'hit', key: opponentHurtKey + 1 })
       const t = setTimeout(() => setOpponentHurtActive(false), getMaxHurtDuration(opponentTeam))
       return () => clearTimeout(t)
     }
-  }, [opponentHP, opponentTeam])
+  }, [opponentHP, opponentTeam, opponentHurtKey])
+
+  useEffect(() => {
+    if (playerHealKey !== prevPlayerHealKeyRef.current) {
+      prevPlayerHealKeyRef.current = playerHealKey
+      setPlayerEffect({ kind: 'heal', key: playerHealKey })
+    }
+  }, [playerHealKey])
+
+  useEffect(() => {
+    if (opponentHealKey !== prevOpponentHealKeyRef.current) {
+      prevOpponentHealKeyRef.current = opponentHealKey
+      setOpponentEffect({ kind: 'heal', key: opponentHealKey })
+    }
+  }, [opponentHealKey])
+
+  const renderEffect = (
+    spots: FighterSpot[],
+    effect: { kind: EffectKind; key: number } | null,
+    mirror: boolean,
+    prefix: string,
+  ) => {
+    if (!effect) return null
+    const sheet = EFFECTS[effect.kind]
+    return spots.map((spot, index) => (
+      <div
+        key={`${prefix}-effect-${effect.kind}-${effect.key}-${index}`}
+        className="absolute"
+        style={{
+          left: `${spot.x * 100}%`,
+          top: `${spot.y * 100}%`,
+          transform: `translate(-50%, -100%) ${mirror ? 'scaleX(-1)' : ''}`,
+          zIndex: 20,
+        }}
+      >
+        <SpriteAnimator
+          src={sheet.src}
+          alt={`${prefix}-${effect.kind}`}
+          height={Math.round(128 * (spot.scale ?? 1))}
+          duration={sheet.duration}
+          mode="once"
+          onComplete={() => {
+            if (prefix === 'player') setPlayerEffect(null)
+            else setOpponentEffect(null)
+          }}
+        />
+      </div>
+    ))
+  }
 
   const renderTeam = (
     team: Team,
@@ -221,6 +280,8 @@ export default function BattleStage({
         <div className="absolute inset-0">
           {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, playerAttackSheet, playerAttackKey, playerDead, playerHurtActive, playerHurtKey, false, 'player')}
           {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, opponentAttackSheet, opponentAttackKey, opponentDead, opponentHurtActive, opponentHurtKey, true, 'opponent')}
+          {renderEffect(battleground.playerTeam, playerEffect, false, 'player')}
+          {renderEffect(battleground.opponentTeam, opponentEffect, true, 'opponent')}
         </div>
       </BattleCamera>
     </div>

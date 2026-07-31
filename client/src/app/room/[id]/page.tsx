@@ -65,6 +65,7 @@ export default function RoomPage() {
   const [results, setResults] = useState<Array<{ player_id: string; name: string; wpm: number; accuracy: number; position: number }> | null>(null)
   const [playerDamageFlash, setPlayerDamageFlash] = useState<number>(0)
   const [opponentDamageFlash, setOpponentDamageFlash] = useState<number>(0)
+  const [screenFlash, setScreenFlash] = useState<'hit' | 'heal' | null>(null)
   const [comboStreak, setComboStreak] = useState(0)
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
@@ -72,6 +73,8 @@ export default function RoomPage() {
   const [opponentAttack, setOpponentAttack] = useState<string>('')
   const [opponentAttackSeq, setOpponentAttackSeq] = useState(0)
   const [playerAttackSeq, setPlayerAttackSeq] = useState(0)
+  const [playerHealSeq, setPlayerHealSeq] = useState(0)
+  const [opponentHealSeq, setOpponentHealSeq] = useState(0)
   const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
   const [playerTeam, setPlayerTeam] = useState<Team>(() => getTeam())
   const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
@@ -233,6 +236,8 @@ export default function RoomPage() {
             setPlayerHP(message.hp_update.hp)
             setPlayerDamageFlash(message.hp_update.damage)
             setOpponentAttackSeq(seq => seq + 1)
+            setScreenFlash('hit')
+            setTimeout(() => setScreenFlash(null), 300)
             setTimeout(() => setPlayerDamageFlash(0), 500)
             {
               const newId = ++floatIdRef.current
@@ -258,6 +263,8 @@ export default function RoomPage() {
           } else {
             setOpponentHP(message.hp_update.hp)
             setOpponentDamageFlash(message.hp_update.damage)
+            setScreenFlash('hit')
+            setTimeout(() => setScreenFlash(null), 300)
             setTimeout(() => setOpponentDamageFlash(0), 500)
             {
               const newId = ++floatIdRef.current
@@ -311,6 +318,9 @@ export default function RoomPage() {
         if (message.heal_update) {
           if (message.heal_update.playerID === playerId) {
             setPlayerHP(message.heal_update.hp)
+            setPlayerHealSeq(seq => seq + 1)
+            setScreenFlash('heal')
+            setTimeout(() => setScreenFlash(null), 300)
             {
               const newId = ++floatIdRef.current
               setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'player'}])
@@ -318,6 +328,9 @@ export default function RoomPage() {
             }
           } else {
             setOpponentHP(message.heal_update.hp)
+            setOpponentHealSeq(seq => seq + 1)
+            setScreenFlash('heal')
+            setTimeout(() => setScreenFlash(null), 300)
             {
               const newId = ++floatIdRef.current
               setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'opponent'}])
@@ -563,9 +576,25 @@ export default function RoomPage() {
         .animate-streak-pop {
           animation: streak-pop 0.3s ease-out;
         }
+        @keyframes screen-flash-fade {
+          0% { opacity: 0.55; }
+          100% { opacity: 0; }
+        }
+        .animate-screen-flash {
+          animation: screen-flash-fade 0.3s ease-out forwards;
+        }
+        @keyframes screen-shake {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-6px, 3px); }
+          50% { transform: translate(5px, -4px); }
+          75% { transform: translate(-3px, 2px); }
+        }
+        .animate-screen-shake {
+          animation: screen-shake 0.3s ease-out;
+        }
       `}</style>
         {(gameState === 'countdown' || gameState === 'playing') && (
-          <div className={`fixed inset-0 z-0 ${gameState === 'countdown' ? 'blur-sm' : ''}`} aria-hidden>
+          <div className={`fixed inset-0 z-0 ${gameState === 'countdown' ? 'blur-sm' : ''} ${screenFlash === 'hit' ? 'animate-screen-shake' : ''}`} aria-hidden>
             <BattleStage
               battleground={getBattleground(battlegroundId ?? undefined)}
               playerTeam={playerTeam}
@@ -577,7 +606,15 @@ export default function RoomPage() {
               opponentHP={opponentHP}
               playerAttackKey={playerAttackSeq}
               opponentAttackKey={opponentAttackSeq}
+              playerHealKey={playerHealSeq}
+              opponentHealKey={opponentHealSeq}
             />
+            {screenFlash && (
+              <div
+                key={`${screenFlash}-${Date.now()}`}
+                className={`fixed inset-0 z-10 pointer-events-none animate-screen-flash ${screenFlash === 'hit' ? 'bg-red-500' : 'bg-emerald-400'}`}
+              />
+            )}
           </div>
         )}
       <div className="relative z-10 max-w-4xl mx-auto">
