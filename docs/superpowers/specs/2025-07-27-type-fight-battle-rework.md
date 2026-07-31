@@ -403,14 +403,12 @@ This rewards:
 When a player types a wrong character:
 
 - The wrong character is not accepted
-- The player must press Backspace to correct
-- Time continues flowing during correction
+- The player must click the correct character to proceed
 - The error counts against accuracy
 
 Rules:
 
 - Wrong characters cannot be skipped
-- Backspace removes the last typed character
 - No freeze or time penalty beyond the time spent correcting
 - Accuracy is calculated at phrase completion
 
