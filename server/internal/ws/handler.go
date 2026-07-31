@@ -98,7 +98,7 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 }
 
 func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg ClientMessage) {
-	allReady, err := h.roomManager.SetPlayerReady(roomID, playerID, msg.Team)
+	_, err := h.roomManager.SetPlayerReady(roomID, playerID, msg.Team)
 	if err != nil {
 		h.sendError(roomID, playerID, err.Error())
 		return
@@ -110,53 +110,6 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg Clie
 	}
 	readyData, _ := json.Marshal(readyMsg)
 	h.hub.BroadcastToRoom(roomID, readyData)
-
-	if allReady {
-		room := h.roomManager.GetRoom(roomID)
-		if room == nil {
-			return
-		}
-
-		if room.Status == "lobby" || room.Status == "waiting" {
-			err := h.roomManager.StartGame(roomID, playerID, nil)
-			if err != nil {
-				h.sendError(roomID, playerID, err.Error())
-				return
-			}
-
-			room = h.roomManager.GetRoom(roomID)
-
-			players := make([]PlayerInfo, 0)
-			for _, p := range room.Players {
-				players = append(players, PlayerInfo{
-					ID:   p.ID,
-					Name: p.Name,
-					Team: p.Team,
-				})
-			}
-
-			response := ServerMessage{
-				Type:    "game_start",
-				Text:    room.Text,
-				Players: players,
-				HostID:  room.HostID,
-			}
-
-			startData, _ := json.Marshal(response)
-			h.hub.BroadcastToRoom(roomID, startData)
-
-			setupMsg := ServerMessage{
-				Type:         "game_setup",
-				PhrasePools:  game.GetPhrasePools(),
-				Battleground: game.GetRandomBattleground(),
-			}
-			setupData, _ := json.Marshal(setupMsg)
-			h.hub.BroadcastToRoom(roomID, setupData)
-
-			go h.waitForTimeout(roomID)
-			go h.waitForBattleTimeout(roomID)
-		}
-	}
 }
 
 func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {

@@ -869,3 +869,52 @@ func TestHandleReady_WithoutTeam_SendsError(t *testing.T) {
 		t.Error("expected error message when ready without team")
 	}
 }
+
+func TestHandleReady_DoesNotAutoStartGame(t *testing.T) {
+	hostConn := &TestConnection{}
+	guestConn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	hostJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Host Player"})
+	handler.HandleMessage(hostConn, room.ID, "host1", hostJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	guestJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Guest"})
+	handler.HandleMessage(guestConn, room.ID, "player1", guestJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	guestReady, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(guestConn, room.ID, "player1", guestReady)
+	time.Sleep(10 * time.Millisecond)
+
+	hostReady, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(hostConn, room.ID, "host1", hostReady)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if room.Status == "playing" {
+		t.Error("expected game NOT to auto-start from ready")
+	}
+
+	for _, conn := range []*TestConnection{hostConn, guestConn} {
+		for _, raw := range conn.snapshot() {
+			var resp ServerMessage
+			if err := json.Unmarshal(raw, &resp); err != nil {
+				continue
+			}
+			if resp.Type == "game_start" {
+				t.Error("expected no game_start broadcast from ready")
+			}
+			if resp.Type == "error" {
+				t.Error("expected no error from readying all players")
+			}
+		}
+	}
+}
