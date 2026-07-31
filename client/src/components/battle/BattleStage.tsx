@@ -43,12 +43,12 @@ export default function BattleStage({
 }: BattleStageProps) {
   const focus = resolveFocusSpot(battleground, playerTeam, activePlayerTier, cameraMode)
 
-  const renderTeam = (team: Team, spots: FighterSpot[], activeTier: Tier | null, mirror: boolean) =>
+  const renderTeam = (team: Team, spots: FighterSpot[], activeTier: Tier | null, mirror: boolean, prefix: string) =>
     team.map((tier, index) => {
       const spot = spots[index]
       return (
         <div
-          key={tier}
+          key={`${prefix}-${tier}`}
           className="absolute"
           style={{
             left: `${spot.x * 100}%`,
@@ -64,11 +64,11 @@ export default function BattleStage({
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
-      <ParallaxScene battleground={battleground} running={running} />
       <BattleCamera focus={focus}>
+        <ParallaxScene battleground={battleground} running={running} />
         <div className="absolute inset-0">
-          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, false)}
-          {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, true)}
+          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, false, 'player')}
+          {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, true, 'opponent')}
         </div>
       </BattleCamera>
     </div>

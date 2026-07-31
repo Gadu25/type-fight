@@ -32,7 +32,7 @@ export default function ParallaxScene({ battleground, running }: ParallaxScenePr
       trackRefs.current.forEach((track, index) => {
         if (track) {
           const speed = battleground.layers[index]?.speed ?? 0
-          track.style.transform = layerTranslate(speed, offsetRef.current)
+          track.style.transform = layerTranslate(speed, offsetRef.current, viewportWidth)
         }
       })
       frameId = requestAnimationFrame(loop)

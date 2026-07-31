@@ -16,7 +16,7 @@ export default function BattleCamera({ focus, children }: BattleCameraProps) {
     height: '100%',
     transform: focus ? `scale(${ZOOM_SCALE})` : 'scale(1)',
     transformOrigin: focus ? `${focus.x * 100}% ${focus.y * 100}%` : '50% 50%',
-    transition: 'transform 500ms cubic-bezier(.22,.9,.35,1)',
+    transition: 'transform 500ms cubic-bezier(.22,.9,.35,1), transform-origin 500ms cubic-bezier(.22,.9,.35,1)',
     willChange: 'transform',
   }
   return <div style={style}>{children}</div>
