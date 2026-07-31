@@ -84,6 +84,17 @@ describe('SpriteAnimator', () => {
     }
   })
 
+  it('lets the sheet overflow so the container crops to a single frame', () => {
+    render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
+    const img = screen.getByAltText('Grunt') as HTMLImageElement
+    Object.defineProperty(img, 'naturalWidth', { value: 768, configurable: true })
+    fireEvent.load(img)
+    const loaded = screen.getByAltText('Grunt') as HTMLImageElement
+    expect(loaded.style.width).toBe('768px')
+    expect(loaded.style.maxWidth).toBe('none')
+    expect(loaded.style.transform).toBe('translateX(0px)')
+  })
+
   it('loops in loop mode', () => {
     render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
     loadImage('Grunt', 640)

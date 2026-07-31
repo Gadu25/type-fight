@@ -74,6 +74,7 @@ export default function SpriteAnimator({ src, alt, height = 128, duration, mode,
         style={{
           width: frameCount > 0 ? frameCount * height : height,
           height,
+          maxWidth: 'none',
           transform: `translateX(${-frameIndex * height}px)`,
           imageRendering: 'pixelated',
           opacity: frameCount > 0 ? 1 : 0,
