@@ -118,6 +118,18 @@ const handleReady = useCallback(() => {
 }, [team])
 ```
 
+- `handleStartGame` also becomes team-aware — the host never sends `ready` (their UI shows **Start**), so their team must travel with `start_game`:
+
+```ts
+const handleStartGame = useCallback(() => {
+  if (wsRef.current && team.length === 4) {
+    sendMessage(wsRef.current, { type: 'start_game', team })
+  }
+}, [team])
+```
+
+This is the only channel that carries the host's team to the server.
+
 ## 4.5 `PlayerList` gating
 
 - New prop `teamComplete: boolean`.
@@ -137,7 +149,7 @@ const handleReady = useCallback(() => {
 - `SelectAttack(playerID, tier)` — after locating the player, reject with `"attack tier not in your team"` unless `tier ∈ player.Team`.
 - `SwitchAttack(playerID, newTier)` — same team check.
 - `CompleteAttack(playerID, tier, ...)` — after the existing `CurrentAttack == tier` check, reject if `tier ∉ player.Team` (defense in depth).
-- `StartGame(roomID, playerID)` — add validation: every player in the room must have a valid team, else error `"all players must pick a team"`. (Covers the host, whose Start isn't otherwise team-checked.)
+- `StartGame(roomID, playerID string, hostTeam []string)` — signature change. If `len(hostTeam) > 0`, validate it and store on the host (this is how the host's team reaches the server). Then require every player in the room to have a valid team, else error `"all players must pick a team"`. (Covers the host, whose Start isn't otherwise team-checked.) The `handleReady` auto-start path passes `nil` — there the host already readied with a team.
 - `ResetRoom` — do **not** clear `Team` (loadout persists across rematches).
 - `RemovePlayer` result and `Room.GetRoomInfo` — include `Team` in any `PlayerInfo` construction.
 
@@ -154,7 +166,7 @@ const handleReady = useCallback(() => {
   - `handleReady` game_start players
   - `handlePlayAgain` return-to-lobby `player_list`
   - `HandleDisconnect` `player_left` players
-- `handleStartGame` — unchanged logic; `StartGame` now validates teams server-side (error surfaces via existing `sendError`).
+- `handleStartGame` — pass `msg.Team` into `StartGame` (host's team; error surfaces via existing `sendError`).
 
 **Breaking note:** clients that send `ready` without a team now get an error and are not marked ready. Both players run the same build, so this is safe.
 
@@ -165,6 +177,7 @@ const handleReady = useCallback(() => {
 ## 6.1 `client/src/lib/ws.ts`
 
 - Ready message: `{ type: 'ready'; team: Tier[] }`.
+- Start message: `{ type: 'start_game'; team: Tier[] }` (host's team).
 - `PlayerInfo` gains `team?: Tier[]`; `game_start` players gain `team?: Tier[]`.
 
 ## 6.2 `client/src/app/room/[id]/page.tsx`
@@ -217,6 +230,7 @@ interface ParallaxSceneProps { battleground: Battleground }
 | Player picks 3 and leaves | Draft saved (3/4); next visit shows 3; must add a 4th. |
 | Partial edit down from 4 to 3 | Persisted as 3; gating re-engages. |
 | Ready already pressed, team changed | Picker locks after Ready (`disabled={... \|\| isReady}`); committed team stays valid. |
+| Host starts | Host team sent with `start_game`; server validates all players' teams before starting. |
 | Rematch (`return_to_lobby`) | Team persists server-side and in localStorage; picker re-enables, ready resets. |
 | Disconnect / rejoin | `player_list` includes teams, opponent fighters re-render correctly. |
 | Malicious client skips team | Server rejects ready and every out-of-team attack with an error. |
