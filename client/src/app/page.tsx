@@ -6,12 +6,20 @@ import Image from 'next/image';
 import { getAccount, createAccount } from '@/lib/account';
 import ProfileToggle from '@/components/ProfileToggle';
 import ProfilePanel from '@/components/ProfilePanel';
+import TeamPicker from '@/components/TeamPicker';
+import { getTeam, saveTeam, type Team } from '@/lib/team';
 
 export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [showProfile, setShowProfile] = useState(false);
   const [joinRoomId, setJoinRoomId] = useState('');
+  const [team, setTeam] = useState<Team>(() => getTeam());
   const router = useRouter();
+
+  const handleTeamChange = (newTeam: Team) => {
+    setTeam(newTeam);
+    saveTeam(newTeam);
+  };
 
   useEffect(() => {
     const account = getAccount();
@@ -93,7 +101,11 @@ export default function Home() {
                   placeholder="Enter your name"
                 />
               </div>
-              
+
+              <div className="pt-2">
+                <TeamPicker team={team} onChange={handleTeamChange} />
+              </div>
+
               <button
                 onClick={handleCreateRoom}
                 disabled={!playerName.trim()}
