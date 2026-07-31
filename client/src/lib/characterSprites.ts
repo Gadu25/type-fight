@@ -74,6 +74,10 @@ export function getRandomAttackAnim(tier: Tier): Sheet {
   return Math.random() < 0.5 ? CHARACTER_ANIMATIONS[tier].attack1 : CHARACTER_ANIMATIONS[tier].attack2
 }
 
+export function getAttackDuration(tier: Tier): number {
+  return Math.max(CHARACTER_ANIMATIONS[tier].attack1.duration, CHARACTER_ANIMATIONS[tier].attack2.duration)
+}
+
 export function getMaxHurtDuration(team: Tier[]): number {
   if (team.length === 0) return 400
   return Math.max(...team.map(t => CHARACTER_ANIMATIONS[t].hurt.duration))

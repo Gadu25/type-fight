@@ -18,6 +18,7 @@ function renderStage(overrides: Record<string, unknown> = {}) {
       cameraMode="wide"
       playerHP={1000}
       opponentHP={1000}
+      playerAttackKey={0}
       opponentAttackKey={0}
       {...overrides}
     />,
@@ -38,9 +39,31 @@ describe('BattleStage', () => {
     expect(screen.getAllByAltText(/grunt|archer|paladin|cleric/)).toHaveLength(8)
   })
 
-  it('plays a random attack on the active player tier fighter', () => {
-    renderStage({ activePlayerTier: 'grunt' })
+  it('keeps the active player tier idle until its attack key changes', () => {
+    renderStage({ activePlayerTier: 'grunt', playerAttackKey: 0 })
     loadAllImages()
+    const gruntImages = screen.getAllByAltText('grunt')
+    const attacking = gruntImages.filter(img => /grunt\/attack[12]\.png/.test(img.getAttribute('src') || ''))
+    expect(attacking).toHaveLength(0)
+  })
+
+  it('plays a random attack on the active player tier fighter when the attack key changes', () => {
+    const { rerender } = renderStage({ activePlayerTier: 'grunt', playerAttackKey: 0 })
+    loadAllImages()
+    rerender(
+      <BattleStage
+        battleground={BATTLEGROUNDS.battleground1}
+        playerTeam={TEAM_4}
+        opponentTeam={TEAM_4}
+        activePlayerTier="grunt"
+        activeOpponentTier={null}
+        cameraMode="wide"
+        playerHP={1000}
+        opponentHP={1000}
+        playerAttackKey={1}
+        opponentAttackKey={0}
+      />,
+    )
     const gruntImages = screen.getAllByAltText('grunt')
     const attacking = gruntImages.filter(img => /grunt\/attack[12]\.png/.test(img.getAttribute('src') || ''))
     expect(attacking).toHaveLength(1)
@@ -58,11 +81,6 @@ describe('BattleStage', () => {
     try {
       const { rerender } = renderStage({ activeOpponentTier: 'grunt', opponentAttackKey: 0 })
       loadAllImages()
-      expect(attackImgs()).toHaveLength(1)
-
-      act(() => {
-        vi.advanceTimersByTime(800)
-      })
       expect(attackImgs()).toHaveLength(0)
 
       rerender(
@@ -75,11 +93,17 @@ describe('BattleStage', () => {
           cameraMode="wide"
           playerHP={1000}
           opponentHP={1000}
+          playerAttackKey={0}
           opponentAttackKey={1}
         />,
       )
       loadAllImages()
       expect(attackImgs()).toHaveLength(1)
+
+      act(() => {
+        vi.advanceTimersByTime(800)
+      })
+      expect(attackImgs()).toHaveLength(0)
     } finally {
       cleanup()
       vi.useRealTimers()
@@ -133,7 +157,7 @@ describe('BattleStage', () => {
   })
 
   it('resolves a focus spot from the active tier', () => {
-    expect(resolveFocusSpot(BATTLEGROUNDS.battleground1, TEAM_4, 'grunt', 'playerFocused')).toEqual({ x: 0.12, y: 0.78 })
+    expect(resolveFocusSpot(BATTLEGROUNDS.battleground1, TEAM_4, 'grunt', 'playerFocused')).toEqual(BATTLEGROUNDS.battleground1.playerTeam[0])
   })
 
   it('falls back to the center-most spot when the active tier is not in the team', () => {

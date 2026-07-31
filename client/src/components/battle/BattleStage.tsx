@@ -20,6 +20,7 @@ interface BattleStageProps {
   cameraMode: CameraMode
   playerHP: number
   opponentHP: number
+  playerAttackKey: number
   opponentAttackKey: number
 }
 
@@ -89,11 +90,16 @@ function Fighter({
   mirror: boolean
   prefix: string
 }) {
-  const [attackDone, setAttackDone] = useState(false)
+  const [attackDone, setAttackDone] = useState(true)
+  const prevAttackKeyRef = useRef(attackKey)
+  const isActive = tier === activeTier
 
   useEffect(() => {
-    setAttackDone(false)
-  }, [activeTier, attackKey])
+    if (attackKey !== prevAttackKeyRef.current) {
+      prevAttackKeyRef.current = attackKey
+      if (isActive) setAttackDone(false)
+    }
+  }, [attackKey, isActive])
 
   const resolved = resolveFighter(tier, team, activeTier, attackSheet, attackKey, sideDead, sideHurt, hurtKey, attackDone)
   if (!resolved) return null
@@ -115,6 +121,7 @@ function Fighter({
         key={`${prefix}-${tier}-${resolved.key}`}
         src={resolved.sheet.src}
         alt={tier}
+        height={Math.round(128 * (spot.scale ?? 1))}
         duration={resolved.sheet.duration}
         mode={mode}
         onComplete={onComplete}
@@ -132,6 +139,7 @@ export default function BattleStage({
   cameraMode,
   playerHP,
   opponentHP,
+  playerAttackKey,
   opponentAttackKey,
 }: BattleStageProps) {
   const focus = resolveFocusSpot(battleground, playerTeam, activePlayerTier, cameraMode)
@@ -211,7 +219,7 @@ export default function BattleStage({
       <BattleCamera focus={focus}>
         <ParallaxScene battleground={battleground} />
         <div className="absolute inset-0">
-          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, playerAttackSheet, 0, playerDead, playerHurtActive, playerHurtKey, false, 'player')}
+          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, playerAttackSheet, playerAttackKey, playerDead, playerHurtActive, playerHurtKey, false, 'player')}
           {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, opponentAttackSheet, opponentAttackKey, opponentDead, opponentHurtActive, opponentHurtKey, true, 'opponent')}
         </div>
       </BattleCamera>

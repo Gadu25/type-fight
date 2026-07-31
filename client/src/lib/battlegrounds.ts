@@ -10,6 +10,7 @@ export interface ParallaxLayer {
 export interface FighterSpot {
   x: number
   y: number
+  scale?: number
 }
 
 export interface Battleground {
@@ -34,16 +35,16 @@ export const BATTLEGROUNDS: Record<string, Battleground> = {
       { id: 'stones-grass', image: '/battlegrounds/battleground1/stones-grass.png', speed: 1.0, anchor: 'bottom' },
     ],
     playerTeam: [
-      { x: 0.12, y: 0.78 },
-      { x: 0.2, y: 0.78 },
-      { x: 0.28, y: 0.78 },
-      { x: 0.36, y: 0.78 },
+      { x: 0.16, y: 0.86, scale: 1.0 },
+      { x: 0.27, y: 0.8, scale: 0.92 },
+      { x: 0.1, y: 0.74, scale: 0.85 },
+      { x: 0.22, y: 0.68, scale: 0.85 },
     ],
     opponentTeam: [
-      { x: 0.64, y: 0.78 },
-      { x: 0.72, y: 0.78 },
-      { x: 0.8, y: 0.78 },
-      { x: 0.88, y: 0.78 },
+      { x: 0.84, y: 0.86, scale: 1.0 },
+      { x: 0.73, y: 0.8, scale: 0.92 },
+      { x: 0.9, y: 0.74, scale: 0.85 },
+      { x: 0.78, y: 0.68, scale: 0.85 },
     ],
   },
 }
@@ -64,5 +65,10 @@ export function validateBattleground(battleground: Battleground): string[] {
   }
   if (battleground.playerTeam.length !== 4) errors.push('playerTeam must have exactly 4 spots')
   if (battleground.opponentTeam.length !== 4) errors.push('opponentTeam must have exactly 4 spots')
+  for (const spot of [...battleground.playerTeam, ...battleground.opponentTeam]) {
+    if (spot.scale !== undefined && (spot.scale <= 0 || spot.scale > 1)) {
+      errors.push(`spot scale must be 0-1`)
+    }
+  }
   return errors
 }

@@ -22,6 +22,7 @@ import TeamPicker from '@/components/TeamPicker'
 import { getTeam, saveTeam, type Team } from '@/lib/team'
 import { getBattleground } from '@/lib/battlegrounds'
 import { TIER_MAP, getTierInfo } from '@/lib/tiers'
+import { getAttackDuration } from '@/lib/characterSprites'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -70,12 +71,14 @@ export default function RoomPage() {
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
   const [opponentAttackSeq, setOpponentAttackSeq] = useState(0)
+  const [playerAttackSeq, setPlayerAttackSeq] = useState(0)
   const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
   const [playerTeam, setPlayerTeam] = useState<Team>(() => getTeam())
   const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const swingTimerRef = useRef<NodeJS.Timeout | null>(null)
   const gameOverProcessedRef = useRef<boolean>(false)
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {})
   const playersRef = useRef<Player[]>([])
@@ -128,6 +131,7 @@ export default function RoomPage() {
       ws.close()
       if (timerRef.current) clearInterval(timerRef.current)
       if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current)
+      if (swingTimerRef.current) clearTimeout(swingTimerRef.current)
     }
   }, [roomID, handleJoinMessage])
 
@@ -443,6 +447,10 @@ export default function RoomPage() {
     setCurrentAttack(tier)
     setCurrentDamage(TIER_MAP[tier].value)
     setCameraMode('playerFocused')
+    if (swingTimerRef.current) {
+      clearTimeout(swingTimerRef.current)
+      swingTimerRef.current = null
+    }
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
     }
@@ -470,8 +478,14 @@ export default function RoomPage() {
       })
     }
     setCurrentPhrase('')
-    setCurrentAttack('')
-    setCameraMode('wide')
+    if (currentAttack) {
+      setPlayerAttackSeq(seq => seq + 1)
+      if (swingTimerRef.current) clearTimeout(swingTimerRef.current)
+      swingTimerRef.current = setTimeout(() => {
+        setCurrentAttack('')
+        setCameraMode('wide')
+      }, getAttackDuration(currentAttack as Tier))
+    }
   }, [currentAttack, currentPhrase])
 
   const handleReady = useCallback(() => {
@@ -561,6 +575,7 @@ export default function RoomPage() {
               cameraMode={cameraMode}
               playerHP={playerHP}
               opponentHP={opponentHP}
+              playerAttackKey={playerAttackSeq}
               opponentAttackKey={opponentAttackSeq}
             />
           </div>

@@ -26,4 +26,12 @@ describe('battlegrounds manifest', () => {
     const bg = { ...BATTLEGROUNDS.battleground1, playerTeam: [] }
     expect(validateBattleground(bg).length).toBeGreaterThan(0)
   })
+
+  it('rejects an out-of-range spot scale', () => {
+    const bg = {
+      ...BATTLEGROUNDS.battleground1,
+      playerTeam: BATTLEGROUNDS.battleground1.playerTeam.map((s, i) => (i === 0 ? { ...s, scale: 2 } : s)),
+    }
+    expect(validateBattleground(bg).length).toBeGreaterThan(0)
+  })
 })
