@@ -4,13 +4,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Battleground, FighterSpot } from '@/lib/battlegrounds'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
-import { CHARACTER_ANIMATIONS, getMaxHurtDuration, getRandomAttackAnim, type Sheet } from '@/lib/characterSprites'
+import { CHARACTER_ANIMATIONS, getRandomAttackAnim, type Sheet } from '@/lib/characterSprites'
 import { EFFECTS, type EffectKind } from '@/lib/effects'
 import ParallaxScene from './ParallaxScene'
 import BattleCamera from './BattleCamera'
 import SpriteAnimator from './SpriteAnimator'
 
 export type CameraMode = 'wide' | 'playerFocused'
+
+const HURT_HOLD_MS = 2000
 
 interface BattleStageProps {
   battleground: Battleground
@@ -171,30 +173,42 @@ export default function BattleStage({
   const [opponentEffect, setOpponentEffect] = useState<{ kind: EffectKind; key: number } | null>(null)
   const prevPlayerHealKeyRef = useRef(playerHealKey)
   const prevOpponentHealKeyRef = useRef(opponentHealKey)
+  const playerHurtKeyRef = useRef(0)
+  const opponentHurtKeyRef = useRef(0)
 
   useEffect(() => {
     const prev = prevPlayerHPRef.current
     prevPlayerHPRef.current = playerHP
     if (playerHP < prev) {
-      setPlayerHurtActive(true)
-      setPlayerHurtKey(k => k + 1)
-      setPlayerEffect({ kind: 'hit', key: playerHurtKey + 1 })
-      const t = setTimeout(() => setPlayerHurtActive(false), getMaxHurtDuration(playerTeam))
-      return () => clearTimeout(t)
+      playerHurtKeyRef.current += 1
+      setPlayerHurtKey(playerHurtKeyRef.current)
+      setPlayerEffect({ kind: 'hit', key: playerHurtKeyRef.current })
     }
-  }, [playerHP, playerTeam, playerHurtKey])
+  }, [playerHP])
+
+  useEffect(() => {
+    if (playerHurtKey === 0) return
+    setPlayerHurtActive(true)
+    const t = setTimeout(() => setPlayerHurtActive(false), HURT_HOLD_MS)
+    return () => clearTimeout(t)
+  }, [playerHurtKey])
 
   useEffect(() => {
     const prev = prevOpponentHPRef.current
     prevOpponentHPRef.current = opponentHP
     if (opponentHP < prev) {
-      setOpponentHurtActive(true)
-      setOpponentHurtKey(k => k + 1)
-      setOpponentEffect({ kind: 'hit', key: opponentHurtKey + 1 })
-      const t = setTimeout(() => setOpponentHurtActive(false), getMaxHurtDuration(opponentTeam))
-      return () => clearTimeout(t)
+      opponentHurtKeyRef.current += 1
+      setOpponentHurtKey(opponentHurtKeyRef.current)
+      setOpponentEffect({ kind: 'hit', key: opponentHurtKeyRef.current })
     }
-  }, [opponentHP, opponentTeam, opponentHurtKey])
+  }, [opponentHP])
+
+  useEffect(() => {
+    if (opponentHurtKey === 0) return
+    setOpponentHurtActive(true)
+    const t = setTimeout(() => setOpponentHurtActive(false), HURT_HOLD_MS)
+    return () => clearTimeout(t)
+  }, [opponentHurtKey])
 
   useEffect(() => {
     if (playerHealKey !== prevPlayerHealKeyRef.current) {

@@ -140,6 +140,50 @@ describe('BattleStage', () => {
     expect(hurtImages).toHaveLength(4)
   })
 
+  it('returns fighters to idle after the hurt hold elapses', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      return setTimeout(() => cb(performance.now() + 16), 16) as unknown as number
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id))
+    const hurtCount = () =>
+      screen.getAllByRole('img').filter(img => /\/hurt\.png/.test(img.getAttribute('src') || '')).length
+
+    try {
+      const { rerender } = renderStage()
+      loadAllImages()
+      expect(hurtCount()).toBe(0)
+
+      rerender(
+        <BattleStage
+          battleground={BATTLEGROUNDS.battleground1}
+          playerTeam={TEAM_4}
+          opponentTeam={TEAM_4}
+          activePlayerTier={null}
+          activeOpponentTier={null}
+          cameraMode="wide"
+          playerHP={600}
+          opponentHP={1000}
+          playerAttackKey={0}
+          opponentAttackKey={0}
+          playerHealKey={0}
+          opponentHealKey={0}
+        />,
+      )
+      loadAllImages()
+      expect(hurtCount()).toBe(4)
+
+      act(() => {
+        vi.advanceTimersByTime(2100)
+      })
+      expect(hurtCount()).toBe(0)
+    } finally {
+      cleanup()
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('shows a hit effect over ALL player fighters when player HP drops', () => {
     const { rerender } = renderStage()
     loadAllImages()
