@@ -620,7 +620,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 
 	// Select ultimate attack on player1
 	selectMsg := CombatClientMessage{
-		Type: "select_attack",
+		Type:         "select_attack",
 		SelectAttack: &SelectAttackPayload{Tier: "wizard"},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -735,8 +735,6 @@ func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
 	room := rm.CreateRoom("host1", "Host Player")
 	handler := NewHandler(hub, rm)
 
-	// Both players must join so their connections are registered with the hub;
-	// broadcasts (game_start, game_setup) only reach registered clients.
 	hostJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Host Player"})
 	handler.HandleMessage(connHost, room.ID, "host1", hostJoin)
 	time.Sleep(10 * time.Millisecond)
@@ -745,24 +743,117 @@ func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
 	handler.HandleMessage(connJoiner, room.ID, "player2", joinerJoin)
 	time.Sleep(10 * time.Millisecond)
 
-	setTestTeams(rm, room.ID)
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(connJoiner, room.ID, "player2", readyData)
+	time.Sleep(10 * time.Millisecond)
 
-	startData, _ := json.Marshal(ClientMessage{Type: "start_game"})
+	startData, _ := json.Marshal(ClientMessage{Type: "start_game", Team: team})
 	handler.HandleMessage(connHost, room.ID, "host1", startData)
 	time.Sleep(20 * time.Millisecond)
 
-	found := false
+	foundSetup := false
+	foundTeams := false
 	for _, raw := range connHost.messages {
 		var resp ServerMessage
 		if err := json.Unmarshal(raw, &resp); err != nil {
 			continue
 		}
 		if resp.Type == "game_setup" && resp.Battleground != "" {
-			found = true
-			break
+			foundSetup = true
+		}
+		if resp.Type == "game_start" {
+			for _, p := range resp.Players {
+				if len(p.Team) == 4 {
+					foundTeams = true
+				}
+			}
 		}
 	}
-	if !found {
+	if !foundSetup {
 		t.Error("expected a game_setup message carrying a battleground id")
+	}
+	if !foundTeams {
+		t.Error("expected game_start players to include teams")
+	}
+}
+
+func TestHandleReady_SetsTeam(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	joinMsg, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Player 1"})
+	handler.HandleMessage(conn, room.ID, "player1", joinMsg)
+	time.Sleep(10 * time.Millisecond)
+
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(conn, room.ID, "player1", readyData)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if !room.Players["player1"].Ready {
+		t.Error("expected player1 to be ready")
+	}
+	if len(room.Players["player1"].Team) != 4 || room.Players["player1"].Team[0] != "grunt" {
+		t.Errorf("expected team stored, got %v", room.Players["player1"].Team)
+	}
+
+	foundReady := false
+	for _, raw := range conn.messages {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "player_ready" && resp.ReadyPlayerID == "player1" {
+			foundReady = true
+		}
+	}
+	if !foundReady {
+		t.Error("expected player_ready broadcast")
+	}
+}
+
+func TestHandleReady_WithoutTeam_SendsError(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	joinMsg, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Player 1"})
+	handler.HandleMessage(conn, room.ID, "player1", joinMsg)
+	time.Sleep(10 * time.Millisecond)
+
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready"})
+	handler.HandleMessage(conn, room.ID, "player1", readyData)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if room.Players["player1"].Ready {
+		t.Error("expected player1 to NOT be ready without a team")
+	}
+
+	foundError := false
+	for _, raw := range conn.messages {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "error" {
+			foundError = true
+		}
+	}
+	if !foundError {
+		t.Error("expected error message when ready without team")
 	}
 }

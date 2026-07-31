@@ -33,7 +33,7 @@ func (h *Handler) HandleMessage(conn Connection, roomID, playerID string, data [
 	case "ready":
 		h.handleReady(conn, roomID, playerID, msg)
 	case "start_game":
-		h.handleStartGame(conn, roomID, playerID)
+		h.handleStartGame(conn, roomID, playerID, msg)
 	case "keystroke":
 		h.handleKeystroke(conn, roomID, playerID, msg)
 	case "select_attack":
@@ -71,14 +71,15 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 		players = append(players, PlayerInfo{
 			ID:   p.ID,
 			Name: p.Name,
+			Team: p.Team,
 		})
 	}
 
 	listMsg := ServerMessage{
-		Type:           "player_list",
-		Players:        players,
-		YourPlayerID:   playerID,
-		HostID:         room.HostID,
+		Type:         "player_list",
+		Players:      players,
+		YourPlayerID: playerID,
+		HostID:       room.HostID,
 	}
 	data, _ := json.Marshal(listMsg)
 	conn.WriteMessage(1, data)
@@ -88,6 +89,7 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 		Player: &PlayerInfo{
 			ID:   playerID,
 			Name: msg.PlayerName,
+			Team: room.Players[playerID].Team,
 		},
 	}
 	broadcastData, _ := json.Marshal(broadcastMsg)
@@ -128,31 +130,32 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg Clie
 				players = append(players, PlayerInfo{
 					ID:   p.ID,
 					Name: p.Name,
+					Team: p.Team,
 				})
 			}
 
-		response := ServerMessage{
-			Type:    "game_start",
-			Text:    room.Text,
-			Players: players,
-			HostID:  room.HostID,
+			response := ServerMessage{
+				Type:    "game_start",
+				Text:    room.Text,
+				Players: players,
+				HostID:  room.HostID,
+			}
+
+			startData, _ := json.Marshal(response)
+			h.hub.BroadcastToRoom(roomID, startData)
+
+			setupMsg := ServerMessage{
+				Type:         "game_setup",
+				PhrasePools:  game.GetPhrasePools(),
+				Battleground: game.GetRandomBattleground(),
+			}
+			setupData, _ := json.Marshal(setupMsg)
+			h.hub.BroadcastToRoom(roomID, setupData)
+
+			go h.waitForTimeout(roomID)
+			go h.waitForBattleTimeout(roomID)
 		}
-
-		startData, _ := json.Marshal(response)
-		h.hub.BroadcastToRoom(roomID, startData)
-
-		setupMsg := ServerMessage{
-			Type:         "game_setup",
-			PhrasePools:  game.GetPhrasePools(),
-			Battleground: game.GetRandomBattleground(),
-		}
-		setupData, _ := json.Marshal(setupMsg)
-		h.hub.BroadcastToRoom(roomID, setupData)
-
-		go h.waitForTimeout(roomID)
-		go h.waitForBattleTimeout(roomID)
 	}
-}
 }
 
 func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
@@ -176,8 +179,8 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	}
 
 	playAgainMsg := ServerMessage{
-		Type:          "play_again_request",
-		OpponentName:  opponentName,
+		Type:         "play_again_request",
+		OpponentName: opponentName,
 	}
 	playAgainData, _ := json.Marshal(playAgainMsg)
 	h.hub.BroadcastToRoomExcept(roomID, playerID, playAgainData)
@@ -203,6 +206,7 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 				players = append(players, PlayerInfo{
 					ID:   p.ID,
 					Name: p.Name,
+					Team: p.Team,
 				})
 			}
 			listMsg := ServerMessage{
@@ -216,8 +220,8 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	}
 }
 
-func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
-	err := h.roomManager.StartGame(roomID, playerID, nil)
+func (h *Handler) handleStartGame(conn Connection, roomID, playerID string, msg ClientMessage) {
+	err := h.roomManager.StartGame(roomID, playerID, msg.Team)
 	if err != nil {
 		h.sendError(conn, err.Error())
 		return
@@ -230,6 +234,7 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 		players = append(players, PlayerInfo{
 			ID:   p.ID,
 			Name: p.Name,
+			Team: p.Team,
 		})
 	}
 
@@ -515,9 +520,9 @@ func (h *Handler) HandleDisconnect(roomID, playerID string) {
 		return
 	}
 
-	players := make([]PlayerInfo, 0, len(result.Players))
-	for _, p := range result.Players {
-		players = append(players, PlayerInfo{ID: p.ID, Name: p.Name})
+	players := make([]PlayerInfo, 0, len(room.Players))
+	for _, p := range room.Players {
+		players = append(players, PlayerInfo{ID: p.ID, Name: p.Name, Team: p.Team})
 	}
 	leftMsg := CombatServerMessage{
 		Type: "player_left",
