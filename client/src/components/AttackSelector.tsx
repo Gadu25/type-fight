@@ -3,44 +3,24 @@
 import { useEffect } from 'react'
 import Image from 'next/image'
 import type { Team } from '@/lib/team'
-
-type AttackTier = 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'
-
-interface AttackOption {
-  tier: AttackTier
-  name: string
-  value: number
-  shortcut: string
-  color: string
-  borderColor: string
-  isHeal: boolean
-}
-
-const attacks: AttackOption[] = [
-  { tier: 'grunt',   name: 'Grunt',   value: 80,  shortcut: '1', color: '#ef4444', borderColor: '#dc2626', isHeal: false },
-  { tier: 'archer',  name: 'Archer',  value: 180, shortcut: '2', color: '#22c55e', borderColor: '#16a34a', isHeal: false },
-  { tier: 'paladin', name: 'Paladin', value: 350, shortcut: '3', color: '#3b82f6', borderColor: '#2563eb', isHeal: false },
-  { tier: 'wizard',  name: 'Wizard',  value: 600, shortcut: '4', color: '#a855f7', borderColor: '#9333ea', isHeal: false },
-  { tier: 'cleric',  name: 'Cleric',  value: 60, shortcut: '5', color: '#10b981', borderColor: '#059669', isHeal: true },
-  { tier: 'priest',  name: 'Priest',  value: 140, shortcut: '6', color: '#06b6d4', borderColor: '#0891b2', isHeal: true },
-  { tier: 'saint',   name: 'Saint',   value: 280, shortcut: '7', color: '#fbbf24', borderColor: '#d97706', isHeal: true },
-]
+import type { Tier } from '@/lib/words'
+import { TIERS, getSpritePath, type TierInfo } from '@/lib/tiers'
 
 interface AttackSelectorProps {
-  onSelect: (tier: AttackTier) => void
+  onSelect: (tier: Tier) => void
   currentAttack: string
   disabled?: boolean
   team: Team
 }
 
 export default function AttackSelector({ onSelect, currentAttack, disabled, team }: AttackSelectorProps) {
-  const visibleAttacks = attacks.filter(a => team.includes(a.tier))
+  const visibleAttacks = TIERS.filter(a => team.includes(a.tier))
 
   useEffect(() => {
     if (disabled) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const action = attacks.find(a => a.shortcut === e.key && team.includes(a.tier))
+      const action = TIERS.find(a => a.shortcut === e.key && team.includes(a.tier))
       if (action) {
         onSelect(action.tier)
       }
@@ -50,9 +30,9 @@ export default function AttackSelector({ onSelect, currentAttack, disabled, team
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onSelect, disabled, team])
 
-  const renderButton = (attack: AttackOption) => {
+  const renderButton = (attack: TierInfo) => {
     const isSelected = currentAttack === attack.tier
-    const spriteSrc = `/sprites/${attack.tier}_${isSelected ? 'attack' : 'idle'}.svg`
+    const spriteSrc = getSpritePath(attack.tier, isSelected ? 'attack' : 'idle')
 
     return (
       <button

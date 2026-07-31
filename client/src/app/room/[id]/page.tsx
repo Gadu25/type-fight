@@ -21,6 +21,7 @@ import BattleStage, { type CameraMode } from '@/components/battle/BattleStage'
 import TeamPicker from '@/components/TeamPicker'
 import { getTeam, saveTeam, type Team } from '@/lib/team'
 import { getBattleground } from '@/lib/battlegrounds'
+import { TIER_MAP, getTierInfo } from '@/lib/tiers'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -35,16 +36,6 @@ interface Player {
 }
 
 const BATTLE_TIME_LIMIT = 120
-
-const attackDefs: Record<string, number> = {
-  grunt: 80,
-  archer: 180,
-  paladin: 350,
-  wizard: 600,
-  cleric: 60,
-  priest: 140,
-  saint: 280,
-}
 
 
 export default function RoomPage() {
@@ -448,8 +439,7 @@ export default function RoomPage() {
     const phrase = getRandomPhrase(tier)
     setCurrentPhrase(phrase)
     setCurrentAttack(tier)
-    const def = attackDefs[tier]
-    setCurrentDamage(def)
+    setCurrentDamage(TIER_MAP[tier].value)
     setCameraMode('playerFocused')
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
@@ -536,6 +526,8 @@ export default function RoomPage() {
   const currentPlayer = players.find(p => p.id === playerId)
   const opponentPlayer = players.find(p => p.id !== playerId)
   const opponentTeam: Team = opponentPlayer?.team ?? []
+  const currentAttackInfo = getTierInfo(currentAttack)
+  const opponentAttackInfo = getTierInfo(opponentAttack)
 
   return (
     <main className="relative min-h-screen bg-gray-900 text-white p-8">
@@ -659,24 +651,12 @@ export default function RoomPage() {
                       {/*     🔥 {comboStreak}x */}
                       {/*   </div> */}
                       {/* )} */}
-                      {currentAttack && (
+                      {currentAttackInfo && (
                         <div className="absolute -top-6 left-0 text-sm font-bold"
-                          style={{
-                            color: currentAttack === 'grunt' ? '#ef4444' :
-                                   currentAttack === 'archer' ? '#22c55e' :
-                                   currentAttack === 'paladin' ? '#3b82f6' :
-                                   currentAttack === 'wizard' ? '#a855f7' :
-                                   currentAttack === 'cleric' ? '#10b981' :
-                                   currentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
-                          }}
+                          style={{ color: currentAttackInfo.color }}
                         >
-                          {currentAttack === 'grunt' ? '⚔️' :
-                           currentAttack === 'archer' ? '🏹' :
-                           currentAttack === 'paladin' ? '🛡️' :
-                           currentAttack === 'wizard' ? '✨' :
-                           currentAttack === 'cleric' ? '💚' :
-                           currentAttack === 'priest' ? '🌀' : '👼'}
-                          {' '}{currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)}
+                          {currentAttackInfo.emoji}
+                          {' '}{currentAttackInfo.name}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'player').map(n => (
@@ -704,24 +684,12 @@ export default function RoomPage() {
                         hp={opponentHP}
                         maxHp={1000}
                       />
-                      {opponentAttack && (
+                      {opponentAttackInfo && (
                         <div className="absolute -top-6 right-0 text-sm font-bold"
-                          style={{
-                            color: opponentAttack === 'grunt' ? '#ef4444' :
-                                   opponentAttack === 'archer' ? '#22c55e' :
-                                   opponentAttack === 'paladin' ? '#3b82f6' :
-                                   opponentAttack === 'wizard' ? '#a855f7' :
-                                   opponentAttack === 'cleric' ? '#10b981' :
-                                   opponentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
-                          }}
+                          style={{ color: opponentAttackInfo.color }}
                         >
-                          {opponentAttack === 'grunt' ? '⚔️' :
-                           opponentAttack === 'archer' ? '🏹' :
-                           opponentAttack === 'paladin' ? '🛡️' :
-                           opponentAttack === 'wizard' ? '✨' :
-                           opponentAttack === 'cleric' ? '💚' :
-                           opponentAttack === 'priest' ? '🌀' : '👼'}
-                          {' '}{opponentAttack.charAt(0).toUpperCase() + opponentAttack.slice(1)}
+                          {opponentAttackInfo.emoji}
+                          {' '}{opponentAttackInfo.name}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'opponent').map(n => (

@@ -3,7 +3,7 @@
 import type { Battleground, FighterSpot } from '@/lib/battlegrounds'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
-import { SPRITE_MAP } from '@/lib/sprites'
+import { SPRITE_MAP } from '@/lib/tiers'
 import ParallaxScene from './ParallaxScene'
 import BattleCamera from './BattleCamera'
 import FighterSprite from './FighterSprite'

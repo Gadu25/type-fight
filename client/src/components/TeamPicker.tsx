@@ -3,23 +3,7 @@
 import Image from 'next/image'
 import type { Team } from '@/lib/team'
 import type { Tier } from '@/lib/words'
-
-interface CharacterOption {
-  tier: Tier
-  name: string
-  value: number
-  isHeal: boolean
-}
-
-const CHARACTERS: CharacterOption[] = [
-  { tier: 'grunt',   name: 'Grunt',   value: 80,  isHeal: false },
-  { tier: 'archer',  name: 'Archer',  value: 180, isHeal: false },
-  { tier: 'paladin', name: 'Paladin', value: 350, isHeal: false },
-  { tier: 'wizard',  name: 'Wizard',  value: 600, isHeal: false },
-  { tier: 'cleric',  name: 'Cleric',  value: 60,  isHeal: true },
-  { tier: 'priest',  name: 'Priest',  value: 140, isHeal: true },
-  { tier: 'saint',   name: 'Saint',   value: 280, isHeal: true },
-]
+import { TIERS, getSpritePath } from '@/lib/tiers'
 
 interface TeamPickerProps {
   team: Team
@@ -46,7 +30,7 @@ export default function TeamPicker({ team, onChange, disabled }: TeamPickerProps
         </span>
       </div>
       <div className={`grid grid-cols-4 gap-2 ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
-        {CHARACTERS.map(c => {
+        {TIERS.map(c => {
           const order = team.indexOf(c.tier)
           const selected = order >= 0
           return (
@@ -65,7 +49,7 @@ export default function TeamPicker({ team, onChange, disabled }: TeamPickerProps
                 </span>
               )}
               <Image
-                src={`/sprites/${c.tier}_idle.svg`}
+                src={getSpritePath(c.tier)}
                 alt={c.name}
                 width={52}
                 height={62}
