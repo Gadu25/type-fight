@@ -18,7 +18,7 @@ import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
 import { getRandomPhrase, type Tier } from '@/lib/words'
 import BattleStage, { type CameraMode } from '@/components/battle/BattleStage'
-import { getTeam, DEFAULT_TEAM, type Team } from '@/lib/team'
+import { getTeam, type Team } from '@/lib/team'
 import { getBattleground } from '@/lib/battlegrounds'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
@@ -550,7 +550,7 @@ export default function RoomPage() {
               battleground={getBattleground(battlegroundId ?? undefined)}
               running={gameState === 'playing'}
               playerTeam={playerTeam}
-              opponentTeam={DEFAULT_TEAM}
+              opponentTeam={['grunt', 'archer', 'paladin', 'cleric']}
               activePlayerTier={(currentAttack as Tier) || null}
               activeOpponentTier={(opponentAttack as Tier) || null}
               cameraMode={cameraMode}
