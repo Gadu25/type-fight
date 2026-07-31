@@ -17,6 +17,14 @@ func (t *TestConnection) WriteMessage(messageType int, data []byte) error {
 	return nil
 }
 
+func setTestTeams(rm *game.RoomManager, roomID string) {
+	room := rm.GetRoom(roomID)
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	for _, p := range room.Players {
+		p.Team = team
+	}
+}
+
 func TestHandleJoin(t *testing.T) {
 	conn := &TestConnection{}
 	hub := NewHub()
@@ -111,7 +119,8 @@ func TestHandleKeystroke(t *testing.T) {
 	}
 
 	// Start the game
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -174,7 +183,8 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 		t.Fatalf("failed to join player: %v", err)
 	}
 
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -252,7 +262,8 @@ func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -304,7 +315,8 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -388,7 +400,8 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -453,7 +466,8 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -516,7 +530,8 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -585,7 +600,8 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -668,7 +684,8 @@ func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 		t.Fatalf("failed to join player: %v", err)
 	}
 
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -727,6 +744,8 @@ func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
 	joinerJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Joiner"})
 	handler.HandleMessage(connJoiner, room.ID, "player2", joinerJoin)
 	time.Sleep(10 * time.Millisecond)
+
+	setTestTeams(rm, room.ID)
 
 	startData, _ := json.Marshal(ClientMessage{Type: "start_game"})
 	handler.HandleMessage(connHost, room.ID, "host1", startData)

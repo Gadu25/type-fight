@@ -115,7 +115,7 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg Clie
 		}
 
 		if room.Status == "lobby" || room.Status == "waiting" {
-			err := h.roomManager.StartGame(roomID, playerID)
+			err := h.roomManager.StartGame(roomID, playerID, nil)
 			if err != nil {
 				h.sendError(conn, err.Error())
 				return
@@ -217,7 +217,7 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 }
 
 func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
-	err := h.roomManager.StartGame(roomID, playerID)
+	err := h.roomManager.StartGame(roomID, playerID, nil)
 	if err != nil {
 		h.sendError(conn, err.Error())
 		return

@@ -184,6 +184,15 @@ func sendMsg(t *testing.T, conn *websocket.Conn, msg ws.ClientMessage) {
 	}
 }
 
+func readyWithTeam(t *testing.T, conn *websocket.Conn, client *safeWS) {
+	t.Helper()
+	sendMsg(t, conn, ws.ClientMessage{
+		Type: "ready",
+		Team: []string{"grunt", "archer", "paladin", "cleric"},
+	})
+	client.waitFor(t, "player_ready", 2*time.Second)
+}
+
 type createRoomResp struct {
 	RoomID   string `json:"room_id"`
 	PlayerID string `json:"player_id"`
@@ -222,8 +231,9 @@ func TestFullGameFlow_BothPlayersFinish(t *testing.T) {
 	hostClient.waitFor(t, "player_joined", 2*time.Second)
 	t.Log("Both players joined successfully")
 
-	// Start game
-	sendMsg(t, hostConn, ws.ClientMessage{Type: "start_game"})
+	readyWithTeam(t, secondConn, secondClient)
+	readyWithTeam(t, hostConn, hostClient)
+
 	hostGameStart := hostClient.waitFor(t, "game_start", 2*time.Second)
 	secondClient.waitFor(t, "game_start", 2*time.Second)
 
@@ -344,8 +354,8 @@ func TestProgressBroadcastToOpponent(t *testing.T) {
 	p2Client.waitFor(t, "player_list", 2*time.Second)
 	hostClient.waitFor(t, "player_joined", 2*time.Second)
 
-	// Start game
-	sendMsg(t, hostConn, ws.ClientMessage{Type: "start_game"})
+	readyWithTeam(t, p2Conn, p2Client)
+	readyWithTeam(t, hostConn, hostClient)
 	gameStart := hostClient.waitFor(t, "game_start", 2*time.Second)
 	p2Client.waitFor(t, "game_start", 2*time.Second)
 	gameText := gameStart.Text
@@ -412,8 +422,8 @@ func TestPlayerFinishedNotification(t *testing.T) {
 	p2Client.waitFor(t, "player_list", 2*time.Second)
 	hostClient.waitFor(t, "player_joined", 2*time.Second)
 
-	// Start game
-	sendMsg(t, hostConn, ws.ClientMessage{Type: "start_game"})
+	readyWithTeam(t, p2Conn, p2Client)
+	readyWithTeam(t, hostConn, hostClient)
 	gameStart := hostClient.waitFor(t, "game_start", 2*time.Second)
 	p2Client.waitFor(t, "game_start", 2*time.Second)
 	gameText := gameStart.Text
@@ -472,8 +482,8 @@ func TestTimerContinuesAfterNotification(t *testing.T) {
 	p2Client.waitFor(t, "player_list", 2*time.Second)
 	hostClient.waitFor(t, "player_joined", 2*time.Second)
 
-	// Start game
-	sendMsg(t, hostConn, ws.ClientMessage{Type: "start_game"})
+	readyWithTeam(t, p2Conn, p2Client)
+	readyWithTeam(t, hostConn, hostClient)
 	hostGameStart := hostClient.waitFor(t, "game_start", 2*time.Second)
 	p2Client.waitFor(t, "game_start", 2*time.Second)
 	gameText := hostGameStart.Text
@@ -550,8 +560,8 @@ func TestTimeoutGameEnd(t *testing.T) {
 	p2Client.waitFor(t, "player_list", 2*time.Second)
 	hostClient.waitFor(t, "player_joined", 2*time.Second)
 
-	// Start game
-	sendMsg(t, hostConn, ws.ClientMessage{Type: "start_game"})
+	readyWithTeam(t, p2Conn, p2Client)
+	readyWithTeam(t, hostConn, hostClient)
 	gameStartMsg := hostClient.waitFor(t, "game_start", 2*time.Second)
 	p2Client.waitFor(t, "game_start", 2*time.Second)
 	gameText := gameStartMsg.Text

@@ -160,7 +160,7 @@ func (rm *RoomManager) RemovePlayer(roomID, playerID string) (*RemovePlayerResul
 	}, nil
 }
 
-func (rm *RoomManager) StartGame(roomID, playerID string) error {
+func (rm *RoomManager) StartGame(roomID, playerID string, hostTeam []string) error {
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	rm.mu.RUnlock()
@@ -178,6 +178,20 @@ func (rm *RoomManager) StartGame(roomID, playerID string) error {
 	
 	if len(room.Players) < 2 {
 		return fmt.Errorf("need at least 2 players to start")
+	}
+	
+	if len(hostTeam) > 0 {
+		if !IsValidTeam(hostTeam) {
+			return fmt.Errorf("invalid team")
+		}
+		host := room.Players[room.HostID]
+		host.Team = hostTeam
+	}
+	
+	for _, p := range room.Players {
+		if !IsValidTeam(p.Team) {
+			return fmt.Errorf("all players must pick a team")
+		}
 	}
 	
 	room.Status = "playing"

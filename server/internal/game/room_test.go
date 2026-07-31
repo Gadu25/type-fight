@@ -13,7 +13,7 @@ func setupTestRoom() (*RoomManager, string, string) {
 	team := []string{"grunt", "archer", "paladin", "cleric"}
 	room.Players["player1-id"].Team = team
 	room.Players["player2-id"].Team = team
-	rm.StartGame(room.ID, "player1-id")
+	rm.StartGame(room.ID, "player1-id", nil)
 	return rm, room.ID, "player2-id"
 }
 
@@ -283,5 +283,41 @@ func TestCompleteAttack_RejectsTierNotInTeam(t *testing.T) {
 	_, err := rm.CompleteAttack(player1ID, "wizard", "The ancient civilization discovered forgotten secrets", 100, 100)
 	if err == nil {
 		t.Error("expected error for tier not in team")
+	}
+}
+
+func TestStartGame_RejectsWithoutTeams(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host1", "Host")
+	rm.JoinRoom(room.ID, "host1", "Host")
+	rm.JoinRoom(room.ID, "player1", "Player 1")
+	err := rm.StartGame(room.ID, "host1", nil)
+	if err == nil {
+		t.Error("expected error when no player has a team")
+	}
+	room = rm.GetRoom(room.ID)
+	if room.Status == "playing" {
+		t.Error("expected game not to start")
+	}
+}
+
+func TestStartGame_StoresHostTeam(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host1", "Host")
+	rm.JoinRoom(room.ID, "host1", "Host")
+	rm.JoinRoom(room.ID, "player1", "Player 1")
+	hostTeam := []string{"grunt", "archer", "paladin", "cleric"}
+	room = rm.GetRoom(room.ID)
+	room.Players["player1"].Team = hostTeam
+	err := rm.StartGame(room.ID, "host1", hostTeam)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	room = rm.GetRoom(room.ID)
+	if len(room.Players["host1"].Team) != 4 {
+		t.Errorf("expected host team stored, got %v", room.Players["host1"].Team)
+	}
+	if room.Status != "playing" {
+		t.Error("expected game to start")
 	}
 }
