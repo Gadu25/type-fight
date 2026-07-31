@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Image from 'next/image'
+import type { Team } from '@/lib/team'
 
 type AttackTier = 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'
 
@@ -29,14 +30,17 @@ interface AttackSelectorProps {
   onSelect: (tier: AttackTier) => void
   currentAttack: string
   disabled?: boolean
+  team: Team
 }
 
-export default function AttackSelector({ onSelect, currentAttack, disabled }: AttackSelectorProps) {
+export default function AttackSelector({ onSelect, currentAttack, disabled, team }: AttackSelectorProps) {
+  const visibleAttacks = attacks.filter(a => team.includes(a.tier))
+
   useEffect(() => {
     if (disabled) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const action = attacks.find(a => a.shortcut === e.key)
+      const action = attacks.find(a => a.shortcut === e.key && team.includes(a.tier))
       if (action) {
         onSelect(action.tier)
       }
@@ -44,7 +48,7 @@ export default function AttackSelector({ onSelect, currentAttack, disabled }: At
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onSelect, disabled])
+  }, [onSelect, disabled, team])
 
   const renderButton = (attack: AttackOption) => {
     const isSelected = currentAttack === attack.tier
@@ -88,8 +92,10 @@ export default function AttackSelector({ onSelect, currentAttack, disabled }: At
     )
   }
 
-  const attackTiers = attacks.filter(a => !a.isHeal)
-  const healTiers = attacks.filter(a => a.isHeal)
+  if (visibleAttacks.length === 0) return null
+
+  const attackTiers = visibleAttacks.filter(a => !a.isHeal)
+  const healTiers = visibleAttacks.filter(a => a.isHeal)
 
   return (
     <div className="flex flex-col gap-2">

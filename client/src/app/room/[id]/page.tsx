@@ -761,6 +761,7 @@ export default function RoomPage() {
                 onSelect={handleSelectAttack}
                 currentAttack={currentAttack}
                 disabled={gameState !== 'playing'}
+                team={playerTeam}
               />
             </div>
           </div>
