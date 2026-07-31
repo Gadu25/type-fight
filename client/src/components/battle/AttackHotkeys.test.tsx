@@ -24,6 +24,16 @@ describe('AttackHotkeys', () => {
     expect(onSelect).toHaveBeenCalledWith('grunt')
   })
 
+  it('ignores keydowns with modifiers or auto-repeat', () => {
+    const onSelect = vi.fn()
+    render(<AttackHotkeys team={TEAM_4} currentAttack="" onSelect={onSelect} />)
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true })
+    fireEvent.keyDown(window, { key: '1', altKey: true })
+    fireEvent.keyDown(window, { key: '1', metaKey: true })
+    fireEvent.keyDown(window, { key: '1', repeat: true })
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
   it('triggers onSelect via hotkeys for team members only', () => {
     const onSelect = vi.fn()
     render(<AttackHotkeys team={TEAM_4} currentAttack="" onSelect={onSelect} />)

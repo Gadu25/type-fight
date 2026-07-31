@@ -16,6 +16,7 @@ export default function AttackHotkeys({ team, currentAttack, onSelect, disabled 
   useEffect(() => {
     if (disabled) return
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
       const action = TIERS.find(a => a.shortcut === e.key && team.includes(a.tier))
       if (action) onSelect(action.tier)
     }
