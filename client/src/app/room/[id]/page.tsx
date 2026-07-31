@@ -102,7 +102,7 @@ export default function RoomPage() {
 
   useEffect(() => {
     const account = getAccount()
-    const serverPlayerId = localStorage.getItem('playerId')
+    const serverPlayerId = sessionStorage.getItem('playerId')
     const effectivePlayerId = serverPlayerId || account?.id || null
 
     if (!effectivePlayerId) {
@@ -502,7 +502,7 @@ export default function RoomPage() {
 
   const handleNameSubmitted = useCallback((name: string) => {
     const account = createAccount(name)
-    const serverPlayerId = localStorage.getItem('playerId')
+    const serverPlayerId = sessionStorage.getItem('playerId')
     const effectivePlayerId = serverPlayerId || account.id
     setPlayerId(effectivePlayerId)
     setShowNameModal(false)
