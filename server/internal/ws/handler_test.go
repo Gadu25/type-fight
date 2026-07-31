@@ -333,7 +333,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 		Type: "attack_complete",
 		AttackComplete: &AttackCompletePayload{
 			Tier:    "grunt",
-			Phrase:  \"The sword shines bright\",
+			Phrase:  "The sword shines bright",
 			Correct: 22,
 			Total:   22,
 		},
@@ -698,5 +698,46 @@ func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 	}
 	if progressMsg.Type != "progress" {
 		t.Errorf("expected type 'progress', got '%s'", progressMsg.Type)
+	}
+}
+
+func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
+	connHost := &TestConnection{}
+	connJoiner := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	// Both players must join so their connections are registered with the hub;
+	// broadcasts (game_start, game_setup) only reach registered clients.
+	hostJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Host Player"})
+	handler.HandleMessage(connHost, room.ID, "host1", hostJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	joinerJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Joiner"})
+	handler.HandleMessage(connJoiner, room.ID, "player2", joinerJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	startData, _ := json.Marshal(ClientMessage{Type: "start_game"})
+	handler.HandleMessage(connHost, room.ID, "host1", startData)
+	time.Sleep(20 * time.Millisecond)
+
+	found := false
+	for _, raw := range connHost.messages {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "game_setup" && resp.Battleground != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected a game_setup message carrying a battleground id")
 	}
 }

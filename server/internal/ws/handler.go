@@ -142,8 +142,9 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
 		h.hub.BroadcastToRoom(roomID, startData)
 
 		setupMsg := ServerMessage{
-			Type:        "game_setup",
-			PhrasePools: game.GetPhrasePools(),
+			Type:         "game_setup",
+			PhrasePools:  game.GetPhrasePools(),
+			Battleground: game.GetRandomBattleground(),
 		}
 		setupData, _ := json.Marshal(setupMsg)
 		h.hub.BroadcastToRoom(roomID, setupData)
@@ -243,8 +244,9 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 	h.hub.BroadcastToRoom(roomID, data)
 
 	setupMsg := ServerMessage{
-		Type:        "game_setup",
-		PhrasePools: game.GetPhrasePools(),
+		Type:         "game_setup",
+		PhrasePools:  game.GetPhrasePools(),
+		Battleground: game.GetRandomBattleground(),
 	}
 	setupData, _ := json.Marshal(setupMsg)
 	h.hub.BroadcastToRoom(roomID, setupData)

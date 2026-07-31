@@ -60,6 +60,31 @@ func TestServerMessageMarshal(t *testing.T) {
 	}
 }
 
+func TestServerMessageMarshal_GameSetup(t *testing.T) {
+	msg := ServerMessage{
+		Type:         "game_setup",
+		PhrasePools:  map[string][]string{"grunt": {"hi"}},
+		Battleground: "battleground1",
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if result["type"] != "game_setup" {
+		t.Errorf("got type %v, want 'game_setup'", result["type"])
+	}
+	if result["battleground"] != "battleground1" {
+		t.Errorf("got battleground %v, want 'battleground1'", result["battleground"])
+	}
+}
+
 func TestCombatClientMessage_SelectAttack(t *testing.T) {
 	msg := CombatClientMessage{
 		Type: "select_attack",

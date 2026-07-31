@@ -34,6 +34,7 @@ type ServerMessage struct {
 	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
 	HostID         string           `json:"host_id,omitempty"`
 	PhrasePools    map[string][]string `json:"phrase_pools,omitempty"`
+	Battleground   string              `json:"battleground,omitempty"`
 }
 
 type PlayerInfo struct {
