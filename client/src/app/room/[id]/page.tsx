@@ -16,7 +16,10 @@ import AttackSelector from '@/components/AttackSelector'
 import HealthBar from '@/components/HealthBar'
 import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
-import { getRandomPhrase } from '@/lib/words'
+import { getRandomPhrase, type Tier } from '@/lib/words'
+import BattleStage, { type CameraMode } from '@/components/battle/BattleStage'
+import { getTeam, DEFAULT_TEAM, type Team } from '@/lib/team'
+import { getBattleground } from '@/lib/battlegrounds'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -73,6 +76,8 @@ export default function RoomPage() {
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
+  const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
+  const [playerTeam] = useState<Team>(() => getTeam())
   const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -439,6 +444,7 @@ export default function RoomPage() {
     setCurrentAttack(tier)
     const def = attackDefs[tier]
     setCurrentDamage(def)
+    setCameraMode('playerFocused')
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
     }
@@ -467,6 +473,7 @@ export default function RoomPage() {
     }
     setCurrentPhrase('')
     setCurrentAttack('')
+    setCameraMode('wide')
   }, [currentAttack, currentPhrase])
 
   const handleReady = useCallback(() => {
@@ -494,6 +501,7 @@ export default function RoomPage() {
     gameStartTimeRef.current = Date.now()
     totalCorrectCharsRef.current = 0
     totalKeystrokesRef.current = 0
+    setCameraMode('wide')
   }, [])
 
   const handleCopyRoomCode = useCallback(() => {
@@ -518,7 +526,7 @@ export default function RoomPage() {
   const opponentPlayer = players.find(p => p.id !== playerId)
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="relative min-h-screen bg-gray-900 text-white p-8">
       <style>{`
         @keyframes float-up {
           0% { opacity: 1; transform: translateY(0); }
@@ -536,8 +544,21 @@ export default function RoomPage() {
           animation: streak-pop 0.3s ease-out;
         }
       `}</style>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        {(gameState === 'countdown' || gameState === 'playing') && (
+          <div className={`fixed inset-0 z-0 ${gameState === 'countdown' ? 'blur-sm' : ''}`} aria-hidden>
+            <BattleStage
+              battleground={getBattleground(battlegroundId ?? undefined)}
+              running={gameState === 'playing'}
+              playerTeam={playerTeam}
+              opponentTeam={DEFAULT_TEAM}
+              activePlayerTier={(currentAttack as Tier) || null}
+              activeOpponentTier={(opponentAttack as Tier) || null}
+              cameraMode={cameraMode}
+            />
+          </div>
+        )}
+      <div className="relative z-10 max-w-4xl mx-auto">
+        <div className={`flex justify-between items-center mb-8 ${gameState === 'countdown' || gameState === 'playing' ? 'rounded-xl bg-black/40 backdrop-blur-sm px-4 py-3' : ''}`}>
           <div className="flex items-center gap-2">
             <Image
               src="/images/iconv2.webp"
@@ -596,7 +617,7 @@ export default function RoomPage() {
             )}
 
             {(gameState === 'countdown' || gameState === 'playing') && (
-              <div className={`relative bg-gradient-to-b from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700 py-8 px-6 shadow-lg ${gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}`}>
+              <div className={`relative rounded-xl border border-gray-700/40 bg-black/40 backdrop-blur-sm py-8 px-6 shadow-lg ${gameState === 'countdown' ? 'pointer-events-none' : ''}`}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="w-full relative p-2 rounded-xl"
@@ -698,11 +719,14 @@ export default function RoomPage() {
                   </div>
 
                   {currentPhrase && (
-                    <TypingArea
-                      phrase={currentPhrase}
-                      onComplete={handleAttackComplete}
-                      damageFlash={playerDamageFlash}
-                    />
+                    <div className="rounded-xl border border-gray-700/40 bg-black/50 backdrop-blur-md p-4">
+                      <TypingArea
+                        phrase={currentPhrase}
+                        onComplete={handleAttackComplete}
+                        damageFlash={playerDamageFlash}
+                        onStartTyping={() => setCameraMode('wide')}
+                      />
+                    </div>
                   )}
 
                   {currentAttack && (
@@ -732,11 +756,13 @@ export default function RoomPage() {
 
         {(gameState === 'countdown' || gameState === 'playing') && (
           <div className="mt-6 flex justify-center">
-            <AttackSelector
-              onSelect={handleSelectAttack}
-              currentAttack={currentAttack}
-              disabled={gameState !== 'playing'}
-            />
+            <div className="rounded-xl border border-gray-700/40 bg-black/40 backdrop-blur-sm p-3">
+              <AttackSelector
+                onSelect={handleSelectAttack}
+                currentAttack={currentAttack}
+                disabled={gameState !== 'playing'}
+              />
+            </div>
           </div>
         )}
       </div>
