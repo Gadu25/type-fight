@@ -32,5 +32,6 @@ describe('RoomPage', () => {
   it('renders lobby without crashing', () => {
     render(<RoomPage />)
     expect(document.querySelector('main')).toBeInTheDocument()
+    expect(screen.getByText(/pick exactly 4/)).toBeInTheDocument()
   })
 })

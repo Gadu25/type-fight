@@ -18,7 +18,8 @@ import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
 import { getRandomPhrase, type Tier } from '@/lib/words'
 import BattleStage, { type CameraMode } from '@/components/battle/BattleStage'
-import { getTeam, type Team } from '@/lib/team'
+import TeamPicker from '@/components/TeamPicker'
+import { getTeam, saveTeam, type Team } from '@/lib/team'
 import { getBattleground } from '@/lib/battlegrounds'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
@@ -30,6 +31,7 @@ interface Player {
   isHost: boolean
   hp?: number
   isAlive?: boolean
+  team?: Team
 }
 
 const BATTLE_TIME_LIMIT = 120
@@ -77,7 +79,7 @@ export default function RoomPage() {
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
   const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
-  const [playerTeam] = useState<Team>(() => getTeam())
+  const [playerTeam, setPlayerTeam] = useState<Team>(() => getTeam())
   const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -147,7 +149,8 @@ export default function RoomPage() {
             ready: false,
             isHost: false,
             hp: 1000,
-            isAlive: true
+            isAlive: true,
+            team: p.team ?? []
           })))
           if (message.host_id) {
             setHostId(message.host_id)
@@ -169,7 +172,8 @@ export default function RoomPage() {
               ready: false,
               isHost: false,
               hp: 1000,
-              isAlive: true
+              isAlive: true,
+              team: message.player!.team ?? []
             }]
           })
         }
@@ -184,7 +188,8 @@ export default function RoomPage() {
             ready: true,
             isHost: false,
             hp: 1000,
-            isAlive: true
+            isAlive: true,
+            team: p.team ?? []
           })))
           setGameState('countdown')
           setPlayerHP(1000)
@@ -291,6 +296,7 @@ export default function RoomPage() {
             isHost: message.player_left!.new_host_id ? p.id === message.player_left!.new_host_id : false,
             hp: currentPlayer?.hp || 1000,
             isAlive: true,
+            team: (p as { team?: Tier[] }).team ?? []
           })))
           if (message.player_left.new_host_id) {
             setHostId(message.player_left.new_host_id)
@@ -489,6 +495,11 @@ export default function RoomPage() {
     }
   }, [playerTeam])
 
+  const handleTeamChange = useCallback((newTeam: Team) => {
+    setPlayerTeam(newTeam)
+    saveTeam(newTeam)
+  }, [])
+
   const handlePlayAgain = useCallback(() => {
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'play_again' })
@@ -524,6 +535,7 @@ export default function RoomPage() {
   const isHost = playerId === hostId
   const currentPlayer = players.find(p => p.id === playerId)
   const opponentPlayer = players.find(p => p.id !== playerId)
+  const opponentTeam: Team = opponentPlayer?.team ?? []
 
   return (
     <main className="relative min-h-screen bg-gray-900 text-white p-8">
@@ -549,7 +561,7 @@ export default function RoomPage() {
             <BattleStage
               battleground={getBattleground(battlegroundId ?? undefined)}
               playerTeam={playerTeam}
-              opponentTeam={['grunt', 'archer', 'paladin', 'cleric']}
+              opponentTeam={opponentTeam}
               activePlayerTier={(currentAttack as Tier) || null}
               activeOpponentTier={(opponentAttack as Tier) || null}
               cameraMode={cameraMode}
@@ -581,7 +593,7 @@ export default function RoomPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {(gameState === 'lobby' || gameState === 'finished') && (
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-4">
               <PlayerList
                 players={players}
                 hostId={hostId}
@@ -592,6 +604,12 @@ export default function RoomPage() {
                 isRoomFull={isRoomFull}
                 isReady={isReady}
                 opponentReady={opponentReady}
+                teamComplete={playerTeam.length === 4}
+              />
+              <TeamPicker
+                team={playerTeam}
+                onChange={handleTeamChange}
+                disabled={gameState !== 'lobby' || isReady}
               />
             </div>
           )}
