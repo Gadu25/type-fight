@@ -697,3 +697,27 @@ func generateID() string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+func IsValidTeam(team []string) bool {
+	if len(team) != 4 {
+		return false
+	}
+	seen := make(map[string]bool)
+	for _, tier := range team {
+		def := GetAttackDef(tier)
+		if def.MinWords == 0 || seen[tier] {
+			return false
+		}
+		seen[tier] = true
+	}
+	return true
+}
+
+func containsTier(team []string, tier string) bool {
+	for _, t := range team {
+		if t == tier {
+			return true
+		}
+	}
+	return false
+}

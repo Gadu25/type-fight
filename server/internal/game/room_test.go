@@ -137,3 +137,33 @@ func TestCheckBattleEnd_NoEnd(t *testing.T) {
 		t.Error("Expected no winner yet")
 	}
 }
+
+func TestIsValidTeam(t *testing.T) {
+	valid := []string{"grunt", "archer", "paladin", "cleric"}
+	if !IsValidTeam(valid) {
+		t.Errorf("expected %v to be a valid team", valid)
+	}
+
+	invalid := [][]string{
+		{"grunt", "archer", "paladin"},
+		{"grunt", "grunt", "grunt", "grunt"},
+		{"grunt", "archer", "paladin", "nope"},
+		{"grunt", "archer", "paladin", "cleric", "wizard"},
+		{},
+	}
+	for _, team := range invalid {
+		if IsValidTeam(team) {
+			t.Errorf("expected %v to be invalid", team)
+		}
+	}
+}
+
+func TestContainsTier(t *testing.T) {
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	if !containsTier(team, "grunt") {
+		t.Error("expected containsTier to find grunt")
+	}
+	if containsTier(team, "wizard") {
+		t.Error("expected containsTier to reject wizard")
+	}
+}
