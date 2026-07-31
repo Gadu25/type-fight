@@ -12,6 +12,7 @@ interface PlayerListProps {
   isRoomFull?: boolean;
   isReady?: boolean;
   opponentReady?: boolean;
+  teamComplete?: boolean;
 }
 
 export default function PlayerList({
@@ -24,10 +25,11 @@ export default function PlayerList({
   isRoomFull,
   isReady,
   opponentReady,
+  teamComplete,
 }: PlayerListProps) {
   const isHost = currentPlayerId === hostId;
-  const canStart = isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull && opponentReady;
-  const canReady = !isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull;
+  const canStart = isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull && opponentReady && !!teamComplete;
+  const canReady = !isHost && players.length === 2 && gameStatus === 'lobby' && !isRoomFull && !!teamComplete;
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
@@ -74,7 +76,7 @@ export default function PlayerList({
               disabled={!canReady || isReady}
               className="w-full py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium transition-colors"
             >
-              {isReady ? 'Ready!' : 'Ready'}
+              {isReady ? 'Ready!' : teamComplete ? 'Ready' : 'Pick a team first'}
             </button>
           )}
         </div>

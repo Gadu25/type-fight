@@ -8,10 +8,11 @@ import (
 // Client -> Server messages
 // Supported types: "join", "ready", "start_game", "keystroke", "play_again"
 type ClientMessage struct {
-	Type       string `json:"type"`
-	PlayerName string `json:"player_name,omitempty"`
-	Char       string `json:"char,omitempty"`
-	Position   int    `json:"position,omitempty"`
+	Type       string   `json:"type"`
+	PlayerName string   `json:"player_name,omitempty"`
+	Char       string   `json:"char,omitempty"`
+	Position   int      `json:"position,omitempty"`
+	Team       []string `json:"team,omitempty"`
 }
 
 // Server -> Client messages
@@ -34,11 +35,13 @@ type ServerMessage struct {
 	ReturnToLobby  bool             `json:"return_to_lobby,omitempty"`
 	HostID         string           `json:"host_id,omitempty"`
 	PhrasePools    map[string][]string `json:"phrase_pools,omitempty"`
+	Battleground   string              `json:"battleground,omitempty"`
 }
 
 type PlayerInfo struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   string   `json:"id"`
+	Name string   `json:"name"`
+	Team []string `json:"team,omitempty"`
 }
 
 type ResultInfo struct {

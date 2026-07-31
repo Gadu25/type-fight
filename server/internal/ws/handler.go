@@ -31,9 +31,9 @@ func (h *Handler) HandleMessage(conn Connection, roomID, playerID string, data [
 	case "join":
 		h.handleJoin(conn, roomID, playerID, msg)
 	case "ready":
-		h.handleReady(conn, roomID, playerID)
+		h.handleReady(conn, roomID, playerID, msg)
 	case "start_game":
-		h.handleStartGame(conn, roomID, playerID)
+		h.handleStartGame(conn, roomID, playerID, msg)
 	case "keystroke":
 		h.handleKeystroke(conn, roomID, playerID, msg)
 	case "select_attack":
@@ -48,18 +48,19 @@ func (h *Handler) HandleMessage(conn Connection, roomID, playerID string, data [
 }
 
 func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg ClientMessage) {
-	err := h.roomManager.JoinRoom(roomID, playerID, msg.PlayerName)
-	if err != nil {
-		h.sendError(conn, err.Error())
-		return
-	}
-
 	client := &Client{
 		Conn:     conn,
 		RoomID:   roomID,
 		PlayerID: playerID,
 	}
 	h.hub.Register(client)
+
+	err := h.roomManager.JoinRoom(roomID, playerID, msg.PlayerName)
+	if err != nil {
+		h.sendError(roomID, playerID, err.Error())
+		h.hub.Unregister(client)
+		return
+	}
 
 	room := h.roomManager.GetRoom(roomID)
 	if room == nil {
@@ -71,33 +72,35 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 		players = append(players, PlayerInfo{
 			ID:   p.ID,
 			Name: p.Name,
+			Team: p.Team,
 		})
 	}
 
 	listMsg := ServerMessage{
-		Type:           "player_list",
-		Players:        players,
-		YourPlayerID:   playerID,
-		HostID:         room.HostID,
+		Type:         "player_list",
+		Players:      players,
+		YourPlayerID: playerID,
+		HostID:       room.HostID,
 	}
 	data, _ := json.Marshal(listMsg)
-	conn.WriteMessage(1, data)
+	h.hub.SendToPlayer(roomID, playerID, data)
 
 	broadcastMsg := ServerMessage{
 		Type: "player_joined",
 		Player: &PlayerInfo{
 			ID:   playerID,
 			Name: msg.PlayerName,
+			Team: room.Players[playerID].Team,
 		},
 	}
 	broadcastData, _ := json.Marshal(broadcastMsg)
 	h.hub.BroadcastToRoomExcept(roomID, playerID, broadcastData)
 }
 
-func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
-	allReady, err := h.roomManager.SetPlayerReady(roomID, playerID)
+func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg ClientMessage) {
+	_, err := h.roomManager.SetPlayerReady(roomID, playerID, msg.Team)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -107,57 +110,12 @@ func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
 	}
 	readyData, _ := json.Marshal(readyMsg)
 	h.hub.BroadcastToRoom(roomID, readyData)
-
-	if allReady {
-		room := h.roomManager.GetRoom(roomID)
-		if room == nil {
-			return
-		}
-
-		if room.Status == "lobby" || room.Status == "waiting" {
-			err := h.roomManager.StartGame(roomID, playerID)
-			if err != nil {
-				h.sendError(conn, err.Error())
-				return
-			}
-
-			room = h.roomManager.GetRoom(roomID)
-
-			players := make([]PlayerInfo, 0)
-			for _, p := range room.Players {
-				players = append(players, PlayerInfo{
-					ID:   p.ID,
-					Name: p.Name,
-				})
-			}
-
-		response := ServerMessage{
-			Type:    "game_start",
-			Text:    room.Text,
-			Players: players,
-			HostID:  room.HostID,
-		}
-
-		startData, _ := json.Marshal(response)
-		h.hub.BroadcastToRoom(roomID, startData)
-
-		setupMsg := ServerMessage{
-			Type:        "game_setup",
-			PhrasePools: game.GetPhrasePools(),
-		}
-		setupData, _ := json.Marshal(setupMsg)
-		h.hub.BroadcastToRoom(roomID, setupData)
-
-		go h.waitForTimeout(roomID)
-		go h.waitForBattleTimeout(roomID)
-	}
-}
 }
 
 func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	allWant, err := h.roomManager.SetPlayerWantsPlayAgain(roomID, playerID)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -175,8 +133,8 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	}
 
 	playAgainMsg := ServerMessage{
-		Type:          "play_again_request",
-		OpponentName:  opponentName,
+		Type:         "play_again_request",
+		OpponentName: opponentName,
 	}
 	playAgainData, _ := json.Marshal(playAgainMsg)
 	h.hub.BroadcastToRoomExcept(roomID, playerID, playAgainData)
@@ -184,7 +142,7 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	if allWant {
 		err := h.roomManager.ResetRoom(roomID)
 		if err != nil {
-			h.sendError(conn, err.Error())
+			h.sendError(roomID, playerID, err.Error())
 			return
 		}
 
@@ -202,6 +160,7 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 				players = append(players, PlayerInfo{
 					ID:   p.ID,
 					Name: p.Name,
+					Team: p.Team,
 				})
 			}
 			listMsg := ServerMessage{
@@ -215,10 +174,10 @@ func (h *Handler) handlePlayAgain(conn Connection, roomID, playerID string) {
 	}
 }
 
-func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
-	err := h.roomManager.StartGame(roomID, playerID)
+func (h *Handler) handleStartGame(conn Connection, roomID, playerID string, msg ClientMessage) {
+	err := h.roomManager.StartGame(roomID, playerID, msg.Team)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -229,6 +188,7 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 		players = append(players, PlayerInfo{
 			ID:   p.ID,
 			Name: p.Name,
+			Team: p.Team,
 		})
 	}
 
@@ -243,8 +203,9 @@ func (h *Handler) handleStartGame(conn Connection, roomID, playerID string) {
 	h.hub.BroadcastToRoom(roomID, data)
 
 	setupMsg := ServerMessage{
-		Type:        "game_setup",
-		PhrasePools: game.GetPhrasePools(),
+		Type:         "game_setup",
+		PhrasePools:  game.GetPhrasePools(),
+		Battleground: game.GetRandomBattleground(),
 	}
 	setupData, _ := json.Marshal(setupMsg)
 	h.hub.BroadcastToRoom(roomID, setupData)
@@ -313,7 +274,7 @@ func (h *Handler) waitForBattleTimeout(roomID string) {
 func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg ClientMessage) {
 	wpm, err := h.roomManager.UpdatePlayerPosition(roomID, playerID, msg.Position)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -373,16 +334,16 @@ func (h *Handler) handleKeystroke(conn Connection, roomID, playerID string, msg 
 func (h *Handler) handleSelectAttack(conn Connection, roomID, playerID string, data []byte) {
 	var msg CombatClientMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		h.sendError(conn, "Invalid message format")
+		h.sendError(roomID, playerID, "Invalid message format")
 		return
 	}
 	if msg.SelectAttack == nil {
-		h.sendError(conn, "Missing attack tier")
+		h.sendError(roomID, playerID, "Missing attack tier")
 		return
 	}
 	err := h.roomManager.SelectAttack(playerID, msg.SelectAttack.Tier)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -400,11 +361,11 @@ func (h *Handler) handleSelectAttack(conn Connection, roomID, playerID string, d
 func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string, data []byte) {
 	var msg CombatClientMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		h.sendError(conn, "Invalid message format")
+		h.sendError(roomID, playerID, "Invalid message format")
 		return
 	}
 	if msg.AttackComplete == nil {
-		h.sendError(conn, "Missing attack data")
+		h.sendError(roomID, playerID, "Missing attack data")
 		return
 	}
 
@@ -416,7 +377,7 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 		msg.AttackComplete.Total,
 	)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -473,16 +434,16 @@ func (h *Handler) handleAttackComplete(conn Connection, roomID, playerID string,
 func (h *Handler) handleSwitchAttack(conn Connection, roomID, playerID string, data []byte) {
 	var msg CombatClientMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		h.sendError(conn, "Invalid message format")
+		h.sendError(roomID, playerID, "Invalid message format")
 		return
 	}
 	if msg.SwitchAttack == nil {
-		h.sendError(conn, "Missing attack tier")
+		h.sendError(roomID, playerID, "Missing attack tier")
 		return
 	}
 	err := h.roomManager.SwitchAttack(playerID, msg.SwitchAttack.Tier)
 	if err != nil {
-		h.sendError(conn, err.Error())
+		h.sendError(roomID, playerID, err.Error())
 		return
 	}
 
@@ -513,9 +474,9 @@ func (h *Handler) HandleDisconnect(roomID, playerID string) {
 		return
 	}
 
-	players := make([]PlayerInfo, 0, len(result.Players))
-	for _, p := range result.Players {
-		players = append(players, PlayerInfo{ID: p.ID, Name: p.Name})
+	players := make([]PlayerInfo, 0, len(room.Players))
+	for _, p := range room.Players {
+		players = append(players, PlayerInfo{ID: p.ID, Name: p.Name, Team: p.Team})
 	}
 	leftMsg := CombatServerMessage{
 		Type: "player_left",
@@ -558,7 +519,7 @@ func (h *Handler) HandleDisconnect(roomID, playerID string) {
 	}
 }
 
-func (h *Handler) sendError(conn Connection, message string) {
+func (h *Handler) sendError(roomID, playerID, message string) {
 	response := ServerMessage{
 		Type: "error",
 		Error: &ErrorMessage{
@@ -567,5 +528,5 @@ func (h *Handler) sendError(conn Connection, message string) {
 	}
 
 	data, _ := json.Marshal(response)
-	conn.WriteMessage(1, data)
+	h.hub.SendToPlayer(roomID, playerID, data)
 }

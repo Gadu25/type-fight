@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,12 +10,31 @@ import (
 )
 
 type TestConnection struct {
+	mu       sync.Mutex
 	messages [][]byte
 }
 
 func (t *TestConnection) WriteMessage(messageType int, data []byte) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.messages = append(t.messages, data)
 	return nil
+}
+
+func (t *TestConnection) snapshot() [][]byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	msgs := make([][]byte, len(t.messages))
+	copy(msgs, t.messages)
+	return msgs
+}
+
+func setTestTeams(rm *game.RoomManager, roomID string) {
+	room := rm.GetRoom(roomID)
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	for _, p := range room.Players {
+		p.Team = team
+	}
 }
 
 func TestHandleJoin(t *testing.T) {
@@ -37,12 +57,12 @@ func TestHandleJoin(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if len(conn.messages) == 0 {
+	if len(conn.snapshot()) == 0 {
 		t.Error("expected at least one message to be sent")
 	}
 
 	var resp ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp.Type != "player_list" {
@@ -80,7 +100,7 @@ func TestHandleJoinSeesExistingPlayers(t *testing.T) {
 
 	// Player 1 should see host + themselves
 	var resp1 ServerMessage
-	if err := json.Unmarshal(conn1.messages[0], &resp1); err != nil {
+	if err := json.Unmarshal(conn1.snapshot()[0], &resp1); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp1.Type != "player_list" {
@@ -111,7 +131,8 @@ func TestHandleKeystroke(t *testing.T) {
 	}
 
 	// Start the game
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -137,12 +158,12 @@ func TestHandleKeystroke(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if len(conn.messages) == 0 {
+	if len(conn.snapshot()) == 0 {
 		t.Error("expected progress message")
 	}
 
 	var resp ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp.Type != "progress" {
@@ -174,7 +195,8 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 		t.Fatalf("failed to join player: %v", err)
 	}
 
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -204,13 +226,13 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Should have at least 2 messages: progress + player_finished
-	if len(conn.messages) < 2 {
-		t.Fatalf("expected at least 2 messages (progress + player_finished), got %d", len(conn.messages))
+	if len(conn.snapshot()) < 2 {
+		t.Fatalf("expected at least 2 messages (progress + player_finished), got %d", len(conn.snapshot()))
 	}
 
 	// First message should be progress
 	var progressMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &progressMsg); err != nil {
 		t.Fatalf("failed to unmarshal progress message: %v", err)
 	}
 	if progressMsg.Type != "progress" {
@@ -219,7 +241,7 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 
 	// Second message should be player_finished
 	var finishedMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[1], &finishedMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[1], &finishedMsg); err != nil {
 		t.Fatalf("failed to unmarshal player_finished message: %v", err)
 	}
 	if finishedMsg.Type != "player_finished" {
@@ -252,10 +274,12 @@ func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -303,10 +327,12 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -333,7 +359,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 		Type: "attack_complete",
 		AttackComplete: &AttackCompletePayload{
 			Tier:    "grunt",
-			Phrase:  \"The sword shines bright\",
+			Phrase:  "The sword shines bright",
 			Correct: 22,
 			Total:   22,
 		},
@@ -344,7 +370,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 
 	// Should have hp_update message
 	foundHPUpdate := false
-	for _, msgBytes := range conn.messages {
+	for _, msgBytes := range conn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -386,10 +412,12 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{
 		Conn:     conn,
@@ -450,10 +478,12 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
@@ -472,7 +502,7 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	foundOpponentAttack := false
-	for _, msgBytes := range hostConn.messages {
+	for _, msgBytes := range hostConn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -512,10 +542,12 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
+	rm.GetRoom(room.ID).Players["player1"].Team = []string{"grunt", "archer", "paladin", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: playerConn, RoomID: room.ID, PlayerID: "player1"})
@@ -546,7 +578,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	foundOpponentAttack := false
-	for _, msgBytes := range hostConn.messages {
+	for _, msgBytes := range hostConn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -580,7 +612,8 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to join player: %v", err)
 	}
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -589,6 +622,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	// Note: direct field access in tests is fine; data race acceptable in test code
 	room = rm.GetRoom(room.ID)
 	room.Players["host1"].HP = 400
+	room.Players["player1"].Team = []string{"wizard", "grunt", "archer", "cleric"}
 
 	hub.Register(&Client{Conn: hostConn, RoomID: room.ID, PlayerID: "host1"})
 	hub.Register(&Client{Conn: p2Conn, RoomID: room.ID, PlayerID: "player1"})
@@ -598,7 +632,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 
 	// Select ultimate attack on player1
 	selectMsg := CombatClientMessage{
-		Type: "select_attack",
+		Type:         "select_attack",
 		SelectAttack: &SelectAttackPayload{Tier: "wizard"},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -621,7 +655,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 
 	// Check p2's messages for battle_over
 	foundBattleOver := false
-	for _, msgBytes := range p2Conn.messages {
+	for _, msgBytes := range p2Conn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -662,7 +696,8 @@ func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 		t.Fatalf("failed to join player: %v", err)
 	}
 
-	err = rm.StartGame(room.ID, "host1")
+	setTestTeams(rm, room.ID)
+	err = rm.StartGame(room.ID, "host1", nil)
 	if err != nil {
 		t.Fatalf("failed to start game: %v", err)
 	}
@@ -688,15 +723,198 @@ func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Should only have 1 message: progress (no player_finished)
-	if len(conn.messages) != 1 {
-		t.Fatalf("expected 1 message (progress only), got %d", len(conn.messages))
+	if len(conn.snapshot()) != 1 {
+		t.Fatalf("expected 1 message (progress only), got %d", len(conn.snapshot()))
 	}
 
 	var progressMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &progressMsg); err != nil {
 		t.Fatalf("failed to unmarshal progress message: %v", err)
 	}
 	if progressMsg.Type != "progress" {
 		t.Errorf("expected type 'progress', got '%s'", progressMsg.Type)
+	}
+}
+
+func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
+	connHost := &TestConnection{}
+	connJoiner := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	hostJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Host Player"})
+	handler.HandleMessage(connHost, room.ID, "host1", hostJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	joinerJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Joiner"})
+	handler.HandleMessage(connJoiner, room.ID, "player2", joinerJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(connJoiner, room.ID, "player2", readyData)
+	time.Sleep(10 * time.Millisecond)
+
+	startData, _ := json.Marshal(ClientMessage{Type: "start_game", Team: team})
+	handler.HandleMessage(connHost, room.ID, "host1", startData)
+	time.Sleep(20 * time.Millisecond)
+
+	foundSetup := false
+	foundTeams := false
+	for _, raw := range connHost.snapshot() {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "game_setup" && resp.Battleground != "" {
+			foundSetup = true
+		}
+		if resp.Type == "game_start" {
+			for _, p := range resp.Players {
+				if len(p.Team) == 4 {
+					foundTeams = true
+				}
+			}
+		}
+	}
+	if !foundSetup {
+		t.Error("expected a game_setup message carrying a battleground id")
+	}
+	if !foundTeams {
+		t.Error("expected game_start players to include teams")
+	}
+}
+
+func TestHandleReady_SetsTeam(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	joinMsg, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Player 1"})
+	handler.HandleMessage(conn, room.ID, "player1", joinMsg)
+	time.Sleep(10 * time.Millisecond)
+
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(conn, room.ID, "player1", readyData)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if !room.Players["player1"].Ready {
+		t.Error("expected player1 to be ready")
+	}
+	if len(room.Players["player1"].Team) != 4 || room.Players["player1"].Team[0] != "grunt" {
+		t.Errorf("expected team stored, got %v", room.Players["player1"].Team)
+	}
+
+	foundReady := false
+	for _, raw := range conn.snapshot() {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "player_ready" && resp.ReadyPlayerID == "player1" {
+			foundReady = true
+		}
+	}
+	if !foundReady {
+		t.Error("expected player_ready broadcast")
+	}
+}
+
+func TestHandleReady_WithoutTeam_SendsError(t *testing.T) {
+	conn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	joinMsg, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Player 1"})
+	handler.HandleMessage(conn, room.ID, "player1", joinMsg)
+	time.Sleep(10 * time.Millisecond)
+
+	readyData, _ := json.Marshal(ClientMessage{Type: "ready"})
+	handler.HandleMessage(conn, room.ID, "player1", readyData)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if room.Players["player1"].Ready {
+		t.Error("expected player1 to NOT be ready without a team")
+	}
+
+	foundError := false
+	for _, raw := range conn.snapshot() {
+		var resp ServerMessage
+		if err := json.Unmarshal(raw, &resp); err != nil {
+			continue
+		}
+		if resp.Type == "error" {
+			foundError = true
+		}
+	}
+	if !foundError {
+		t.Error("expected error message when ready without team")
+	}
+}
+
+func TestHandleReady_DoesNotAutoStartGame(t *testing.T) {
+	hostConn := &TestConnection{}
+	guestConn := &TestConnection{}
+	hub := NewHub()
+	go hub.Run()
+	defer hub.Stop()
+
+	rm := game.NewRoomManager()
+	room := rm.CreateRoom("host1", "Host Player")
+	handler := NewHandler(hub, rm)
+
+	hostJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Host Player"})
+	handler.HandleMessage(hostConn, room.ID, "host1", hostJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	guestJoin, _ := json.Marshal(ClientMessage{Type: "join", PlayerName: "Guest"})
+	handler.HandleMessage(guestConn, room.ID, "player1", guestJoin)
+	time.Sleep(10 * time.Millisecond)
+
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	guestReady, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(guestConn, room.ID, "player1", guestReady)
+	time.Sleep(10 * time.Millisecond)
+
+	hostReady, _ := json.Marshal(ClientMessage{Type: "ready", Team: team})
+	handler.HandleMessage(hostConn, room.ID, "host1", hostReady)
+	time.Sleep(10 * time.Millisecond)
+
+	room = rm.GetRoom(room.ID)
+	if room.Status == "playing" {
+		t.Error("expected game NOT to auto-start from ready")
+	}
+
+	for _, conn := range []*TestConnection{hostConn, guestConn} {
+		for _, raw := range conn.snapshot() {
+			var resp ServerMessage
+			if err := json.Unmarshal(raw, &resp); err != nil {
+				continue
+			}
+			if resp.Type == "game_start" {
+				t.Error("expected no game_start broadcast from ready")
+			}
+			if resp.Type == "error" {
+				t.Error("expected no error from readying all players")
+			}
+		}
 	}
 }

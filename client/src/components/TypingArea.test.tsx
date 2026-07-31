@@ -39,4 +39,12 @@ describe('TypingArea', () => {
     fireEvent.keyDown(document, { key: 'i' })
     expect(onComplete).toHaveBeenCalledWith({ correct: 2, total: 2 })
   })
+
+  it('calls onStartTyping on the first keystroke', () => {
+    const onStartTyping = vi.fn()
+    render(<TypingArea phrase="Hi" onComplete={vi.fn()} onStartTyping={onStartTyping} />)
+    fireEvent.keyDown(document, { key: 'H' })
+    fireEvent.keyDown(document, { key: 'i' })
+    expect(onStartTyping).toHaveBeenCalledTimes(1)
+  })
 })

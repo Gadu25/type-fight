@@ -27,6 +27,7 @@ type BroadcastMessage struct {
 	RoomID           string
 	Message          []byte
 	ExcludePlayerID  string
+	TargetPlayerID   string
 }
 
 func NewHub() *Hub {
@@ -67,6 +68,9 @@ func (h *Hub) Run() {
 				if msg.ExcludePlayerID != "" && client.PlayerID == msg.ExcludePlayerID {
 					continue
 				}
+				if msg.TargetPlayerID != "" && client.PlayerID != msg.TargetPlayerID {
+					continue
+				}
 				client.Conn.WriteMessage(1, msg.Message)
 			}
 
@@ -97,6 +101,14 @@ func (h *Hub) BroadcastToRoomExcept(roomID, excludePlayerID string, message []by
 		RoomID:          roomID,
 		Message:         message,
 		ExcludePlayerID: excludePlayerID,
+	}
+}
+
+func (h *Hub) SendToPlayer(roomID, playerID string, message []byte) {
+	h.broadcast <- &BroadcastMessage{
+		RoomID:         roomID,
+		Message:        message,
+		TargetPlayerID: playerID,
 	}
 }
 

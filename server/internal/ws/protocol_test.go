@@ -60,6 +60,31 @@ func TestServerMessageMarshal(t *testing.T) {
 	}
 }
 
+func TestServerMessageMarshal_GameSetup(t *testing.T) {
+	msg := ServerMessage{
+		Type:         "game_setup",
+		PhrasePools:  map[string][]string{"grunt": {"hi"}},
+		Battleground: "battleground1",
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+
+	if result["type"] != "game_setup" {
+		t.Errorf("got type %v, want 'game_setup'", result["type"])
+	}
+	if result["battleground"] != "battleground1" {
+		t.Errorf("got battleground %v, want 'battleground1'", result["battleground"])
+	}
+}
+
 func TestCombatClientMessage_SelectAttack(t *testing.T) {
 	msg := CombatClientMessage{
 		Type: "select_attack",
@@ -160,5 +185,51 @@ func TestCombatServerMessage_HpUpdate(t *testing.T) {
 	}
 	if decoded.HpUpdate.HP != 920 {
 		t.Errorf("Expected HP 920, got %d", decoded.HpUpdate.HP)
+	}
+}
+
+func TestClientMessage_ReadyWithTeam(t *testing.T) {
+	msg := ClientMessage{
+		Type: "ready",
+		Team: []string{"grunt", "archer", "paladin", "cleric"},
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	var decoded ClientMessage
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if decoded.Type != "ready" {
+		t.Errorf("got type %s, want 'ready'", decoded.Type)
+	}
+	if len(decoded.Team) != 4 || decoded.Team[0] != "grunt" {
+		t.Errorf("got team %v, want 4 tiers starting with grunt", decoded.Team)
+	}
+}
+
+func TestPlayerInfo_MarshalIncludesTeam(t *testing.T) {
+	msg := ServerMessage{
+		Type: "player_list",
+		Players: []PlayerInfo{
+			{ID: "p1", Name: "Alice", Team: []string{"grunt", "archer", "paladin", "cleric"}},
+		},
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	players, ok := result["players"].([]interface{})
+	if !ok || len(players) != 1 {
+		t.Fatalf("expected one player, got %v", result["players"])
+	}
+	team, ok := players[0].(map[string]interface{})["team"].([]interface{})
+	if !ok || len(team) != 4 {
+		t.Errorf("expected player team with 4 entries, got %v", players[0])
 	}
 }

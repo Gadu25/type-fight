@@ -12,11 +12,17 @@ import ProfilePanel from '@/components/ProfilePanel'
 import ProfileToggle from '@/components/ProfileToggle'
 import NamePromptModal from '@/components/NamePromptModal'
 import Toast from '@/components/Toast'
-import AttackSelector from '@/components/AttackSelector'
+import AttackHotkeys from '@/components/battle/AttackHotkeys'
 import HealthBar from '@/components/HealthBar'
 import BattleTimer from '@/components/BattleTimer'
 import { getAccount, createAccount, updateMatchHistory } from '@/lib/account'
-import { getRandomPhrase } from '@/lib/words'
+import { getRandomPhrase, type Tier } from '@/lib/words'
+import BattleStage, { type CameraMode } from '@/components/battle/BattleStage'
+import TeamPicker from '@/components/TeamPicker'
+import { getTeam, saveTeam, type Team } from '@/lib/team'
+import { getBattleground } from '@/lib/battlegrounds'
+import { TIER_MAP, getTierInfo } from '@/lib/tiers'
+import { getAttackDuration } from '@/lib/characterSprites'
 
 type GameState = 'lobby' | 'countdown' | 'playing' | 'finished'
 
@@ -27,19 +33,10 @@ interface Player {
   isHost: boolean
   hp?: number
   isAlive?: boolean
+  team?: Team
 }
 
 const BATTLE_TIME_LIMIT = 120
-
-const attackDefs: Record<string, number> = {
-  grunt: 80,
-  archer: 180,
-  paladin: 350,
-  wizard: 600,
-  cleric: 100,
-  priest: 250,
-  saint: 500,
-}
 
 
 export default function RoomPage() {
@@ -68,14 +65,23 @@ export default function RoomPage() {
   const [results, setResults] = useState<Array<{ player_id: string; name: string; wpm: number; accuracy: number; position: number }> | null>(null)
   const [playerDamageFlash, setPlayerDamageFlash] = useState<number>(0)
   const [opponentDamageFlash, setOpponentDamageFlash] = useState<number>(0)
+  const [screenFlash, setScreenFlash] = useState<'hit' | 'heal' | null>(null)
   const [comboStreak, setComboStreak] = useState(0)
   const comboTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
+  const [opponentAttackSeq, setOpponentAttackSeq] = useState(0)
+  const [playerAttackSeq, setPlayerAttackSeq] = useState(0)
+  const [playerHealSeq, setPlayerHealSeq] = useState(0)
+  const [opponentHealSeq, setOpponentHealSeq] = useState(0)
+  const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
+  const [playerTeam, setPlayerTeam] = useState<Team>(() => getTeam())
+  const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
 
   const wsRef = useRef<WebSocket | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const swingTimerRef = useRef<NodeJS.Timeout | null>(null)
   const gameOverProcessedRef = useRef<boolean>(false)
   const handleMessageRef = useRef<(message: ServerMessage) => void>(() => {})
   const playersRef = useRef<Player[]>([])
@@ -128,6 +134,7 @@ export default function RoomPage() {
       ws.close()
       if (timerRef.current) clearInterval(timerRef.current)
       if (comboTimeoutRef.current) clearTimeout(comboTimeoutRef.current)
+      if (swingTimerRef.current) clearTimeout(swingTimerRef.current)
     }
   }, [roomID, handleJoinMessage])
 
@@ -141,7 +148,8 @@ export default function RoomPage() {
             ready: false,
             isHost: false,
             hp: 1000,
-            isAlive: true
+            isAlive: true,
+            team: p.team ?? []
           })))
           if (message.host_id) {
             setHostId(message.host_id)
@@ -163,7 +171,8 @@ export default function RoomPage() {
               ready: false,
               isHost: false,
               hp: 1000,
-              isAlive: true
+              isAlive: true,
+              team: message.player!.team ?? []
             }]
           })
         }
@@ -178,7 +187,8 @@ export default function RoomPage() {
             ready: true,
             isHost: false,
             hp: 1000,
-            isAlive: true
+            isAlive: true,
+            team: p.team ?? []
           })))
           setGameState('countdown')
           setPlayerHP(1000)
@@ -211,6 +221,7 @@ export default function RoomPage() {
         if (message.phrase_pools) {
           phrasePoolsRef.current = message.phrase_pools
         }
+        setBattlegroundId(message.battleground || null)
         break
 
       case 'opponent_attack':
@@ -224,6 +235,9 @@ export default function RoomPage() {
           if (message.hp_update.playerID === playerId) {
             setPlayerHP(message.hp_update.hp)
             setPlayerDamageFlash(message.hp_update.damage)
+            setOpponentAttackSeq(seq => seq + 1)
+            setScreenFlash('hit')
+            setTimeout(() => setScreenFlash(null), 300)
             setTimeout(() => setPlayerDamageFlash(0), 500)
             {
               const newId = ++floatIdRef.current
@@ -249,6 +263,8 @@ export default function RoomPage() {
           } else {
             setOpponentHP(message.hp_update.hp)
             setOpponentDamageFlash(message.hp_update.damage)
+            setScreenFlash('hit')
+            setTimeout(() => setScreenFlash(null), 300)
             setTimeout(() => setOpponentDamageFlash(0), 500)
             {
               const newId = ++floatIdRef.current
@@ -284,6 +300,7 @@ export default function RoomPage() {
             isHost: message.player_left!.new_host_id ? p.id === message.player_left!.new_host_id : false,
             hp: currentPlayer?.hp || 1000,
             isAlive: true,
+            team: (p as { team?: Tier[] }).team ?? []
           })))
           if (message.player_left.new_host_id) {
             setHostId(message.player_left.new_host_id)
@@ -301,6 +318,9 @@ export default function RoomPage() {
         if (message.heal_update) {
           if (message.heal_update.playerID === playerId) {
             setPlayerHP(message.heal_update.hp)
+            setPlayerHealSeq(seq => seq + 1)
+            setScreenFlash('heal')
+            setTimeout(() => setScreenFlash(null), 300)
             {
               const newId = ++floatIdRef.current
               setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'player'}])
@@ -308,6 +328,9 @@ export default function RoomPage() {
             }
           } else {
             setOpponentHP(message.heal_update.hp)
+            setOpponentHealSeq(seq => seq + 1)
+            setScreenFlash('heal')
+            setTimeout(() => setScreenFlash(null), 300)
             {
               const newId = ++floatIdRef.current
               setFloatNumbers(prev => [...prev, {id: newId, damage: -message.heal_update!.heal, side: 'opponent'}])
@@ -435,8 +458,12 @@ export default function RoomPage() {
     const phrase = getRandomPhrase(tier)
     setCurrentPhrase(phrase)
     setCurrentAttack(tier)
-    const def = attackDefs[tier]
-    setCurrentDamage(def)
+    setCurrentDamage(TIER_MAP[tier].value)
+    setCameraMode('playerFocused')
+    if (swingTimerRef.current) {
+      clearTimeout(swingTimerRef.current)
+      swingTimerRef.current = null
+    }
     if (wsRef.current) {
       sendMessage(wsRef.current, { type: 'select_attack', select_attack: { tier } })
     }
@@ -464,20 +491,32 @@ export default function RoomPage() {
       })
     }
     setCurrentPhrase('')
-    setCurrentAttack('')
+    if (currentAttack) {
+      setPlayerAttackSeq(seq => seq + 1)
+      if (swingTimerRef.current) clearTimeout(swingTimerRef.current)
+      swingTimerRef.current = setTimeout(() => {
+        setCurrentAttack('')
+        setCameraMode('wide')
+      }, getAttackDuration(currentAttack as Tier))
+    }
   }, [currentAttack, currentPhrase])
 
   const handleReady = useCallback(() => {
-    if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'ready' })
+    if (wsRef.current && playerTeam.length === 4) {
+      sendMessage(wsRef.current, { type: 'ready', team: playerTeam })
       setIsReady(true)
     }
-  }, [])
+  }, [playerTeam])
 
   const handleStartGame = useCallback(() => {
-    if (wsRef.current) {
-      sendMessage(wsRef.current, { type: 'start_game' })
+    if (wsRef.current && playerTeam.length === 4) {
+      sendMessage(wsRef.current, { type: 'start_game', team: playerTeam })
     }
+  }, [playerTeam])
+
+  const handleTeamChange = useCallback((newTeam: Team) => {
+    setPlayerTeam(newTeam)
+    saveTeam(newTeam)
   }, [])
 
   const handlePlayAgain = useCallback(() => {
@@ -492,6 +531,7 @@ export default function RoomPage() {
     gameStartTimeRef.current = Date.now()
     totalCorrectCharsRef.current = 0
     totalKeystrokesRef.current = 0
+    setCameraMode('wide')
   }, [])
 
   const handleCopyRoomCode = useCallback(() => {
@@ -514,9 +554,12 @@ export default function RoomPage() {
   const isHost = playerId === hostId
   const currentPlayer = players.find(p => p.id === playerId)
   const opponentPlayer = players.find(p => p.id !== playerId)
+  const opponentTeam: Team = opponentPlayer?.team ?? []
+  const currentAttackInfo = getTierInfo(currentAttack)
+  const opponentAttackInfo = getTierInfo(opponentAttack)
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
+    <main className="relative min-h-screen bg-gray-900 text-white p-8">
       <style>{`
         @keyframes float-up {
           0% { opacity: 1; transform: translateY(0); }
@@ -533,9 +576,49 @@ export default function RoomPage() {
         .animate-streak-pop {
           animation: streak-pop 0.3s ease-out;
         }
+        @keyframes screen-flash-fade {
+          0% { opacity: 0.55; }
+          100% { opacity: 0; }
+        }
+        .animate-screen-flash {
+          animation: screen-flash-fade 0.3s ease-out forwards;
+        }
+        @keyframes screen-shake {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-6px, 3px); }
+          50% { transform: translate(5px, -4px); }
+          75% { transform: translate(-3px, 2px); }
+        }
+        .animate-screen-shake {
+          animation: screen-shake 0.3s ease-out;
+        }
       `}</style>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        {(gameState === 'countdown' || gameState === 'playing') && (
+          <div className={`fixed inset-0 z-0 ${gameState === 'countdown' ? 'blur-sm' : ''} ${screenFlash === 'hit' ? 'animate-screen-shake' : ''}`} aria-hidden>
+            <BattleStage
+              battleground={getBattleground(battlegroundId ?? undefined)}
+              playerTeam={playerTeam}
+              opponentTeam={opponentTeam}
+              activePlayerTier={(currentAttack as Tier) || null}
+              activeOpponentTier={(opponentAttack as Tier) || null}
+              cameraMode={cameraMode}
+              playerHP={playerHP}
+              opponentHP={opponentHP}
+              playerAttackKey={playerAttackSeq}
+              opponentAttackKey={opponentAttackSeq}
+              playerHealKey={playerHealSeq}
+              opponentHealKey={opponentHealSeq}
+            />
+            {screenFlash && (
+              <div
+                key={`${screenFlash}-${Date.now()}`}
+                className={`fixed inset-0 z-10 pointer-events-none animate-screen-flash ${screenFlash === 'hit' ? 'bg-red-500' : 'bg-emerald-400'}`}
+              />
+            )}
+          </div>
+        )}
+      <div className="relative z-10 max-w-4xl mx-auto">
+        <div className={`flex justify-between items-center mb-8 ${gameState === 'countdown' || gameState === 'playing' ? 'rounded-xl bg-black/40 backdrop-blur-sm px-4 py-3' : ''}`}>
           <div className="flex items-center gap-2">
             <Image
               src="/images/iconv2.webp"
@@ -559,7 +642,7 @@ export default function RoomPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {(gameState === 'lobby' || gameState === 'finished') && (
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-4">
               <PlayerList
                 players={players}
                 hostId={hostId}
@@ -570,6 +653,12 @@ export default function RoomPage() {
                 isRoomFull={isRoomFull}
                 isReady={isReady}
                 opponentReady={opponentReady}
+                teamComplete={playerTeam.length === 4}
+              />
+              <TeamPicker
+                team={playerTeam}
+                onChange={handleTeamChange}
+                disabled={gameState !== 'lobby' || isReady}
               />
             </div>
           )}
@@ -594,7 +683,7 @@ export default function RoomPage() {
             )}
 
             {(gameState === 'countdown' || gameState === 'playing') && (
-              <div className={`relative bg-gradient-to-b from-gray-800/50 to-gray-900/50 rounded-xl border border-gray-700 py-8 px-6 shadow-lg ${gameState === 'countdown' ? 'blur-sm pointer-events-none' : ''}`}>
+              <div className={`relative rounded-xl border border-gray-700/40 bg-black/40 backdrop-blur-sm py-8 px-6 shadow-lg ${gameState === 'countdown' ? 'pointer-events-none' : ''}`}>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div className="w-full relative p-2 rounded-xl"
@@ -619,24 +708,12 @@ export default function RoomPage() {
                       {/*     🔥 {comboStreak}x */}
                       {/*   </div> */}
                       {/* )} */}
-                      {currentAttack && (
+                      {currentAttackInfo && (
                         <div className="absolute -top-6 left-0 text-sm font-bold"
-                          style={{
-                            color: currentAttack === 'grunt' ? '#ef4444' :
-                                   currentAttack === 'archer' ? '#22c55e' :
-                                   currentAttack === 'paladin' ? '#3b82f6' :
-                                   currentAttack === 'wizard' ? '#a855f7' :
-                                   currentAttack === 'cleric' ? '#10b981' :
-                                   currentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
-                          }}
+                          style={{ color: currentAttackInfo.color }}
                         >
-                          {currentAttack === 'grunt' ? '⚔️' :
-                           currentAttack === 'archer' ? '🏹' :
-                           currentAttack === 'paladin' ? '🛡️' :
-                           currentAttack === 'wizard' ? '✨' :
-                           currentAttack === 'cleric' ? '💚' :
-                           currentAttack === 'priest' ? '🌀' : '👼'}
-                          {' '}{currentAttack.charAt(0).toUpperCase() + currentAttack.slice(1)}
+                          {currentAttackInfo.emoji}
+                          {' '}{currentAttackInfo.name}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'player').map(n => (
@@ -664,24 +741,12 @@ export default function RoomPage() {
                         hp={opponentHP}
                         maxHp={1000}
                       />
-                      {opponentAttack && (
+                      {opponentAttackInfo && (
                         <div className="absolute -top-6 right-0 text-sm font-bold"
-                          style={{
-                            color: opponentAttack === 'grunt' ? '#ef4444' :
-                                   opponentAttack === 'archer' ? '#22c55e' :
-                                   opponentAttack === 'paladin' ? '#3b82f6' :
-                                   opponentAttack === 'wizard' ? '#a855f7' :
-                                   opponentAttack === 'cleric' ? '#10b981' :
-                                   opponentAttack === 'priest' ? '#06b6d4' : '#fbbf24'
-                          }}
+                          style={{ color: opponentAttackInfo.color }}
                         >
-                          {opponentAttack === 'grunt' ? '⚔️' :
-                           opponentAttack === 'archer' ? '🏹' :
-                           opponentAttack === 'paladin' ? '🛡️' :
-                           opponentAttack === 'wizard' ? '✨' :
-                           opponentAttack === 'cleric' ? '💚' :
-                           opponentAttack === 'priest' ? '🌀' : '👼'}
-                          {' '}{opponentAttack.charAt(0).toUpperCase() + opponentAttack.slice(1)}
+                          {opponentAttackInfo.emoji}
+                          {' '}{opponentAttackInfo.name}
                         </div>
                       )}
                       {floatNumbers.filter(n => n.side === 'opponent').map(n => (
@@ -696,11 +761,14 @@ export default function RoomPage() {
                   </div>
 
                   {currentPhrase && (
-                    <TypingArea
-                      phrase={currentPhrase}
-                      onComplete={handleAttackComplete}
-                      damageFlash={playerDamageFlash}
-                    />
+                    <div className="rounded-xl border border-gray-700/40 bg-black/50 backdrop-blur-md p-4">
+                      <TypingArea
+                        phrase={currentPhrase}
+                        onComplete={handleAttackComplete}
+                        damageFlash={playerDamageFlash}
+                        onStartTyping={() => setCameraMode('wide')}
+                      />
+                    </div>
                   )}
 
                   {currentAttack && (
@@ -729,10 +797,11 @@ export default function RoomPage() {
         </div>
 
         {(gameState === 'countdown' || gameState === 'playing') && (
-          <div className="mt-6 flex justify-center">
-            <AttackSelector
-              onSelect={handleSelectAttack}
+          <div className="fixed bottom-4 right-4 z-20">
+            <AttackHotkeys
+              team={playerTeam}
               currentAttack={currentAttack}
+              onSelect={handleSelectAttack}
               disabled={gameState !== 'playing'}
             />
           </div>

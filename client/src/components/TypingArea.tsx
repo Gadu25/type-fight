@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 interface TypingAreaProps {
   phrase: string
   onComplete: (result: { correct: number; total: number }) => void
+  onStartTyping?: () => void
   disabled?: boolean
   damageFlash?: number
 }
@@ -28,7 +29,7 @@ function generateShakeKeyframe(damage: number): string {
   return steps.join('\n')
 }
 
-export default function TypingArea({ phrase, onComplete, disabled, damageFlash = 0 }: TypingAreaProps) {
+export default function TypingArea({ phrase, onComplete, onStartTyping, disabled, damageFlash = 0 }: TypingAreaProps) {
   const [position, setPosition] = useState(0)
   const [errors, setErrors] = useState<Set<number>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -38,6 +39,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
   const totalKeystrokesRef = useRef(0)
   const damageKeyRef = useRef(0)
   const wiggleKeyRef = useRef(0)
+  const startedRef = useRef(false)
   const [damageKey, setDamageKey] = useState(0)
   const [animName, setAnimName] = useState('')
   const [wiggle, setWiggle] = useState<{ index: number; key: number } | null>(null)
@@ -64,6 +66,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
     errorsRef.current = new Set()
     correctCountRef.current = 0
     totalKeystrokesRef.current = 0
+    startedRef.current = false
   }, [phrase])
 
   useEffect(() => {
@@ -106,6 +109,10 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
     }
     if (e.key.length !== 1) return
     if (pos >= phrase.length) return
+    if (!startedRef.current) {
+      startedRef.current = true
+      onStartTyping?.()
+    }
     e.preventDefault()
     if (e.key === phrase[pos]) {
       const newPos = pos + 1
@@ -125,7 +132,7 @@ export default function TypingArea({ phrase, onComplete, disabled, damageFlash =
       wiggleKeyRef.current += 1
       setWiggle({ index: pos, key: wiggleKeyRef.current })
     }
-  }, [phrase, disabled, onComplete])
+  }, [phrase, disabled, onComplete, onStartTyping])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)

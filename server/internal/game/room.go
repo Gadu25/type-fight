@@ -11,6 +11,7 @@ import (
 type PlayerState struct {
 	ID                 string
 	Name               string
+	Team               []string
 	Position           int
 	Correct            int
 	Total              int
@@ -159,7 +160,7 @@ func (rm *RoomManager) RemovePlayer(roomID, playerID string) (*RemovePlayerResul
 	}, nil
 }
 
-func (rm *RoomManager) StartGame(roomID, playerID string) error {
+func (rm *RoomManager) StartGame(roomID, playerID string, hostTeam []string) error {
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	rm.mu.RUnlock()
@@ -177,6 +178,20 @@ func (rm *RoomManager) StartGame(roomID, playerID string) error {
 	
 	if len(room.Players) < 2 {
 		return fmt.Errorf("need at least 2 players to start")
+	}
+	
+	if len(hostTeam) > 0 {
+		if !IsValidTeam(hostTeam) {
+			return fmt.Errorf("invalid team")
+		}
+		host := room.Players[room.HostID]
+		host.Team = hostTeam
+	}
+	
+	for _, p := range room.Players {
+		if !IsValidTeam(p.Team) {
+			return fmt.Errorf("all players must pick a team")
+		}
 	}
 	
 	room.Status = "playing"
@@ -360,7 +375,7 @@ type PlayerInfo struct {
 	Name string `json:"name"`
 }
 
-func (rm *RoomManager) SetPlayerReady(roomID, playerID string) (bool, error) {
+func (rm *RoomManager) SetPlayerReady(roomID, playerID string, team []string) (bool, error) {
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	rm.mu.RUnlock()
@@ -377,6 +392,10 @@ func (rm *RoomManager) SetPlayerReady(roomID, playerID string) (bool, error) {
 		return false, fmt.Errorf("player not in room")
 	}
 
+	if !IsValidTeam(team) {
+		return false, fmt.Errorf("invalid team")
+	}
+	player.Team = team
 	player.Ready = true
 
 	allReady := true
@@ -487,6 +506,10 @@ func (rm *RoomManager) SelectAttack(playerID, tier string) error {
 			room.mu.Unlock()
 			continue
 		}
+		if !containsTier(player.Team, tier) {
+			room.mu.Unlock()
+			return fmt.Errorf("attack tier not in your team")
+		}
 		player.CurrentAttack = tier
 		room.mu.Unlock()
 		return nil
@@ -521,6 +544,10 @@ func (rm *RoomManager) CompleteAttack(playerID, tier, phrase string, correct, to
 		if attacker.CurrentAttack != tier {
 			room.mu.Unlock()
 			return nil, fmt.Errorf("attack tier mismatch")
+		}
+		if !containsTier(attacker.Team, tier) {
+			room.mu.Unlock()
+			return nil, fmt.Errorf("attack tier not in your team")
 		}
 
 		def := GetAttackDef(tier)
@@ -609,6 +636,10 @@ func (rm *RoomManager) SwitchAttack(playerID, newTier string) error {
 			room.mu.Unlock()
 			continue
 		}
+		if !containsTier(player.Team, newTier) {
+			room.mu.Unlock()
+			return fmt.Errorf("attack tier not in your team")
+		}
 		player.CurrentAttack = newTier
 		room.mu.Unlock()
 		return nil
@@ -696,4 +727,28 @@ func generateID() string {
 	b := make([]byte, 8)
 	rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+func IsValidTeam(team []string) bool {
+	if len(team) != 4 {
+		return false
+	}
+	seen := make(map[string]bool)
+	for _, tier := range team {
+		def := GetAttackDef(tier)
+		if def.MinWords == 0 || seen[tier] {
+			return false
+		}
+		seen[tier] = true
+	}
+	return true
+}
+
+func containsTier(team []string, tier string) bool {
+	for _, t := range team {
+		if t == tier {
+			return true
+		}
+	}
+	return false
 }
