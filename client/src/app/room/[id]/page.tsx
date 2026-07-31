@@ -548,7 +548,6 @@ export default function RoomPage() {
           <div className={`fixed inset-0 z-0 ${gameState === 'countdown' ? 'blur-sm' : ''}`} aria-hidden>
             <BattleStage
               battleground={getBattleground(battlegroundId ?? undefined)}
-              running={gameState === 'playing'}
               playerTeam={playerTeam}
               opponentTeam={['grunt', 'archer', 'paladin', 'cleric']}
               activePlayerTier={(currentAttack as Tier) || null}

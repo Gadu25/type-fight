@@ -12,7 +12,6 @@ describe('BattleStage', () => {
     render(
       <BattleStage
         battleground={BATTLEGROUNDS.battleground1}
-        running={false}
         playerTeam={TEAM_4}
         opponentTeam={TEAM_4}
         activePlayerTier={null}

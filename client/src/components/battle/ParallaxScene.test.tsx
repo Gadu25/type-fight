@@ -5,8 +5,8 @@ import ParallaxScene from './ParallaxScene'
 import { BATTLEGROUNDS } from '@/lib/battlegrounds'
 
 describe('ParallaxScene', () => {
-  it('renders two tiled copies of every layer', () => {
-    const { container } = render(<ParallaxScene battleground={BATTLEGROUNDS.battleground1} running={false} />)
-    expect(container.querySelectorAll('img').length).toBe(BATTLEGROUNDS.battleground1.layers.length * 2)
+  it('renders a single copy of every layer', () => {
+    const { container } = render(<ParallaxScene battleground={BATTLEGROUNDS.battleground1} />)
+    expect(container.querySelectorAll('img').length).toBe(BATTLEGROUNDS.battleground1.layers.length)
   })
 })

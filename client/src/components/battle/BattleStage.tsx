@@ -12,7 +12,6 @@ export type CameraMode = 'wide' | 'playerFocused'
 
 interface BattleStageProps {
   battleground: Battleground
-  running: boolean
   playerTeam: Team
   opponentTeam: Team
   activePlayerTier: Tier | null
@@ -34,7 +33,6 @@ export function resolveFocusSpot(
 
 export default function BattleStage({
   battleground,
-  running,
   playerTeam,
   opponentTeam,
   activePlayerTier,
@@ -65,7 +63,7 @@ export default function BattleStage({
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
       <BattleCamera focus={focus}>
-        <ParallaxScene battleground={battleground} running={running} />
+        <ParallaxScene battleground={battleground} />
         <div className="absolute inset-0">
           {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, false, 'player')}
           {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, true, 'opponent')}
