@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,12 +10,23 @@ import (
 )
 
 type TestConnection struct {
+	mu       sync.Mutex
 	messages [][]byte
 }
 
 func (t *TestConnection) WriteMessage(messageType int, data []byte) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.messages = append(t.messages, data)
 	return nil
+}
+
+func (t *TestConnection) snapshot() [][]byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	msgs := make([][]byte, len(t.messages))
+	copy(msgs, t.messages)
+	return msgs
 }
 
 func setTestTeams(rm *game.RoomManager, roomID string) {
@@ -45,12 +57,12 @@ func TestHandleJoin(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if len(conn.messages) == 0 {
+	if len(conn.snapshot()) == 0 {
 		t.Error("expected at least one message to be sent")
 	}
 
 	var resp ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp.Type != "player_list" {
@@ -88,7 +100,7 @@ func TestHandleJoinSeesExistingPlayers(t *testing.T) {
 
 	// Player 1 should see host + themselves
 	var resp1 ServerMessage
-	if err := json.Unmarshal(conn1.messages[0], &resp1); err != nil {
+	if err := json.Unmarshal(conn1.snapshot()[0], &resp1); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp1.Type != "player_list" {
@@ -146,12 +158,12 @@ func TestHandleKeystroke(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	if len(conn.messages) == 0 {
+	if len(conn.snapshot()) == 0 {
 		t.Error("expected progress message")
 	}
 
 	var resp ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &resp); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &resp); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 	if resp.Type != "progress" {
@@ -214,13 +226,13 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Should have at least 2 messages: progress + player_finished
-	if len(conn.messages) < 2 {
-		t.Fatalf("expected at least 2 messages (progress + player_finished), got %d", len(conn.messages))
+	if len(conn.snapshot()) < 2 {
+		t.Fatalf("expected at least 2 messages (progress + player_finished), got %d", len(conn.snapshot()))
 	}
 
 	// First message should be progress
 	var progressMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &progressMsg); err != nil {
 		t.Fatalf("failed to unmarshal progress message: %v", err)
 	}
 	if progressMsg.Type != "progress" {
@@ -229,7 +241,7 @@ func TestHandleKeystrokePlayerFinished(t *testing.T) {
 
 	// Second message should be player_finished
 	var finishedMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[1], &finishedMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[1], &finishedMsg); err != nil {
 		t.Fatalf("failed to unmarshal player_finished message: %v", err)
 	}
 	if finishedMsg.Type != "player_finished" {
@@ -358,7 +370,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 
 	// Should have hp_update message
 	foundHPUpdate := false
-	for _, msgBytes := range conn.messages {
+	for _, msgBytes := range conn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -490,7 +502,7 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	foundOpponentAttack := false
-	for _, msgBytes := range hostConn.messages {
+	for _, msgBytes := range hostConn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -566,7 +578,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	foundOpponentAttack := false
-	for _, msgBytes := range hostConn.messages {
+	for _, msgBytes := range hostConn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -643,7 +655,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 
 	// Check p2's messages for battle_over
 	foundBattleOver := false
-	for _, msgBytes := range p2Conn.messages {
+	for _, msgBytes := range p2Conn.snapshot() {
 		var resp CombatServerMessage
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
@@ -711,12 +723,12 @@ func TestHandleKeystrokePlayerNotFinished(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Should only have 1 message: progress (no player_finished)
-	if len(conn.messages) != 1 {
-		t.Fatalf("expected 1 message (progress only), got %d", len(conn.messages))
+	if len(conn.snapshot()) != 1 {
+		t.Fatalf("expected 1 message (progress only), got %d", len(conn.snapshot()))
 	}
 
 	var progressMsg ServerMessage
-	if err := json.Unmarshal(conn.messages[0], &progressMsg); err != nil {
+	if err := json.Unmarshal(conn.snapshot()[0], &progressMsg); err != nil {
 		t.Fatalf("failed to unmarshal progress message: %v", err)
 	}
 	if progressMsg.Type != "progress" {
@@ -754,7 +766,7 @@ func TestHandleStartGame_SendsGameSetupWithBattleground(t *testing.T) {
 
 	foundSetup := false
 	foundTeams := false
-	for _, raw := range connHost.messages {
+	for _, raw := range connHost.snapshot() {
 		var resp ServerMessage
 		if err := json.Unmarshal(raw, &resp); err != nil {
 			continue
@@ -806,7 +818,7 @@ func TestHandleReady_SetsTeam(t *testing.T) {
 	}
 
 	foundReady := false
-	for _, raw := range conn.messages {
+	for _, raw := range conn.snapshot() {
 		var resp ServerMessage
 		if err := json.Unmarshal(raw, &resp); err != nil {
 			continue
@@ -844,7 +856,7 @@ func TestHandleReady_WithoutTeam_SendsError(t *testing.T) {
 	}
 
 	foundError := false
-	for _, raw := range conn.messages {
+	for _, raw := range conn.snapshot() {
 		var resp ServerMessage
 		if err := json.Unmarshal(raw, &resp); err != nil {
 			continue
