@@ -167,3 +167,62 @@ func TestContainsTier(t *testing.T) {
 		t.Error("expected containsTier to reject wizard")
 	}
 }
+
+func TestSetPlayerReady_SetsTeamAndReady(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host1", "Host")
+	rm.JoinRoom(room.ID, "player1", "Player 1")
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	allReady, err := rm.SetPlayerReady(room.ID, "player1", team)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if allReady {
+		t.Error("expected not all ready (host not ready)")
+	}
+	room = rm.GetRoom(room.ID)
+	if !room.Players["player1"].Ready {
+		t.Error("expected player to be ready")
+	}
+	if len(room.Players["player1"].Team) != 4 || room.Players["player1"].Team[0] != "grunt" {
+		t.Errorf("expected team stored, got %v", room.Players["player1"].Team)
+	}
+}
+
+func TestSetPlayerReady_RejectsInvalidTeam(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host1", "Host")
+	rm.JoinRoom(room.ID, "player1", "Player 1")
+	invalidTeams := [][]string{
+		{"grunt", "archer", "paladin"},
+		{"grunt", "grunt", "grunt", "grunt"},
+		{"grunt", "archer", "paladin", "nope"},
+	}
+	for _, team := range invalidTeams {
+		_, err := rm.SetPlayerReady(room.ID, "player1", team)
+		if err == nil {
+			t.Errorf("expected error for team %v", team)
+		}
+		room = rm.GetRoom(room.ID)
+		if room.Players["player1"].Ready {
+			t.Errorf("expected player not ready after invalid team %v", team)
+		}
+	}
+}
+
+func TestSetPlayerReady_AllReady(t *testing.T) {
+	rm := NewRoomManager()
+	room := rm.CreateRoom("host1", "Host")
+	rm.JoinRoom(room.ID, "player1", "Player 1")
+	team := []string{"grunt", "archer", "paladin", "cleric"}
+	if _, err := rm.SetPlayerReady(room.ID, "host1", team); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	allReady, err := rm.SetPlayerReady(room.ID, "player1", team)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !allReady {
+		t.Error("expected all ready")
+	}
+}

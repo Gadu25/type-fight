@@ -11,6 +11,7 @@ import (
 type PlayerState struct {
 	ID                 string
 	Name               string
+	Team               []string
 	Position           int
 	Correct            int
 	Total              int
@@ -360,7 +361,7 @@ type PlayerInfo struct {
 	Name string `json:"name"`
 }
 
-func (rm *RoomManager) SetPlayerReady(roomID, playerID string) (bool, error) {
+func (rm *RoomManager) SetPlayerReady(roomID, playerID string, team []string) (bool, error) {
 	rm.mu.RLock()
 	room, exists := rm.rooms[roomID]
 	rm.mu.RUnlock()
@@ -377,6 +378,10 @@ func (rm *RoomManager) SetPlayerReady(roomID, playerID string) (bool, error) {
 		return false, fmt.Errorf("player not in room")
 	}
 
+	if !IsValidTeam(team) {
+		return false, fmt.Errorf("invalid team")
+	}
+	player.Team = team
 	player.Ready = true
 
 	allReady := true

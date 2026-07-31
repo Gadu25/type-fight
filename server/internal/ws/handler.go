@@ -31,7 +31,7 @@ func (h *Handler) HandleMessage(conn Connection, roomID, playerID string, data [
 	case "join":
 		h.handleJoin(conn, roomID, playerID, msg)
 	case "ready":
-		h.handleReady(conn, roomID, playerID)
+		h.handleReady(conn, roomID, playerID, msg)
 	case "start_game":
 		h.handleStartGame(conn, roomID, playerID)
 	case "keystroke":
@@ -94,8 +94,8 @@ func (h *Handler) handleJoin(conn Connection, roomID, playerID string, msg Clien
 	h.hub.BroadcastToRoomExcept(roomID, playerID, broadcastData)
 }
 
-func (h *Handler) handleReady(conn Connection, roomID, playerID string) {
-	allReady, err := h.roomManager.SetPlayerReady(roomID, playerID)
+func (h *Handler) handleReady(conn Connection, roomID, playerID string, msg ClientMessage) {
+	allReady, err := h.roomManager.SetPlayerReady(roomID, playerID, msg.Team)
 	if err != nil {
 		h.sendError(conn, err.Error())
 		return
