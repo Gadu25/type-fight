@@ -1,4 +1,4 @@
-type Tier = 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'
+export type Tier = 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'
 
 const phrasePools: Record<Tier, string[]> = {
   grunt: [
