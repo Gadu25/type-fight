@@ -69,6 +69,7 @@ export default function RoomPage() {
   const [floatNumbers, setFloatNumbers] = useState<Array<{id: number; damage: number; side: 'player' | 'opponent'}>>([])
   const floatIdRef = useRef(0)
   const [opponentAttack, setOpponentAttack] = useState<string>('')
+  const [opponentAttackSeq, setOpponentAttackSeq] = useState(0)
   const [cameraMode, setCameraMode] = useState<CameraMode>('wide')
   const [playerTeam, setPlayerTeam] = useState<Team>(() => getTeam())
   const [battlegroundId, setBattlegroundId] = useState<string | null>(null)
@@ -227,6 +228,7 @@ export default function RoomPage() {
           if (message.hp_update.playerID === playerId) {
             setPlayerHP(message.hp_update.hp)
             setPlayerDamageFlash(message.hp_update.damage)
+            setOpponentAttackSeq(seq => seq + 1)
             setTimeout(() => setPlayerDamageFlash(0), 500)
             {
               const newId = ++floatIdRef.current
@@ -559,6 +561,7 @@ export default function RoomPage() {
               cameraMode={cameraMode}
               playerHP={playerHP}
               opponentHP={opponentHP}
+              opponentAttackKey={opponentAttackSeq}
             />
           </div>
         )}

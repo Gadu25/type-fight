@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import BattleStage, { resolveFocusSpot } from './BattleStage'
 import { BATTLEGROUNDS } from '@/lib/battlegrounds'
@@ -18,6 +18,7 @@ function renderStage(overrides: Record<string, unknown> = {}) {
       cameraMode="wide"
       playerHP={1000}
       opponentHP={1000}
+      opponentAttackKey={0}
       {...overrides}
     />,
   )
@@ -43,6 +44,47 @@ describe('BattleStage', () => {
     const gruntImages = screen.getAllByAltText('grunt')
     const attacking = gruntImages.filter(img => /grunt\/attack[12]\.png/.test(img.getAttribute('src') || ''))
     expect(attacking).toHaveLength(1)
+  })
+
+  it('replays the opponent attack when opponentAttackKey changes after completion', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      return setTimeout(() => cb(performance.now() + 16), 16) as unknown as number
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id))
+    const attackImgs = () =>
+      screen.getAllByAltText('grunt').filter(img => /grunt\/attack[12]\.png/.test(img.getAttribute('src') || ''))
+
+    try {
+      const { rerender } = renderStage({ activeOpponentTier: 'grunt', opponentAttackKey: 0 })
+      loadAllImages()
+      expect(attackImgs()).toHaveLength(1)
+
+      act(() => {
+        vi.advanceTimersByTime(800)
+      })
+      expect(attackImgs()).toHaveLength(0)
+
+      rerender(
+        <BattleStage
+          battleground={BATTLEGROUNDS.battleground1}
+          playerTeam={TEAM_4}
+          opponentTeam={TEAM_4}
+          activePlayerTier={null}
+          activeOpponentTier="grunt"
+          cameraMode="wide"
+          playerHP={1000}
+          opponentHP={1000}
+          opponentAttackKey={1}
+        />,
+      )
+      loadAllImages()
+      expect(attackImgs()).toHaveLength(1)
+    } finally {
+      cleanup()
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('plays hurt on ALL player fighters when player HP drops', () => {

@@ -20,6 +20,7 @@ interface BattleStageProps {
   cameraMode: CameraMode
   playerHP: number
   opponentHP: number
+  opponentAttackKey: number
 }
 
 type AnimKind = 'idle' | 'attack' | 'hurt' | 'dead'
@@ -47,6 +48,7 @@ function resolveFighter(
   team: Team,
   activeTier: Tier | null,
   attackSheet: Sheet | null,
+  attackKey: number,
   sideDead: boolean,
   sideHurt: boolean,
   hurtKey: number,
@@ -57,7 +59,7 @@ function resolveFighter(
   if (sideDead) return { sheet: def.dead, kind: 'dead', key: `dead` }
   if (sideHurt) return { sheet: def.hurt, kind: 'hurt', key: `hurt-${hurtKey}` }
   if (tier === activeTier && attackSheet && !attackDone) {
-    return { sheet: attackSheet, kind: 'attack', key: `attack` }
+    return { sheet: attackSheet, kind: 'attack', key: `attack-${attackKey}` }
   }
   return { sheet: def.idle, kind: 'idle', key: `idle` }
 }
@@ -68,6 +70,7 @@ function Fighter({
   spot,
   activeTier,
   attackSheet,
+  attackKey,
   sideDead,
   sideHurt,
   hurtKey,
@@ -79,6 +82,7 @@ function Fighter({
   spot: FighterSpot
   activeTier: Tier | null
   attackSheet: Sheet | null
+  attackKey: number
   sideDead: boolean
   sideHurt: boolean
   hurtKey: number
@@ -89,9 +93,9 @@ function Fighter({
 
   useEffect(() => {
     setAttackDone(false)
-  }, [activeTier])
+  }, [activeTier, attackKey])
 
-  const resolved = resolveFighter(tier, team, activeTier, attackSheet, sideDead, sideHurt, hurtKey, attackDone)
+  const resolved = resolveFighter(tier, team, activeTier, attackSheet, attackKey, sideDead, sideHurt, hurtKey, attackDone)
   if (!resolved) return null
 
   const mode = resolved.kind === 'dead' ? 'hold' : resolved.kind === 'idle' ? 'loop' : 'once'
@@ -128,6 +132,7 @@ export default function BattleStage({
   cameraMode,
   playerHP,
   opponentHP,
+  opponentAttackKey,
 }: BattleStageProps) {
   const focus = resolveFocusSpot(battleground, playerTeam, activePlayerTier, cameraMode)
 
@@ -177,6 +182,7 @@ export default function BattleStage({
     spots: FighterSpot[],
     activeTier: Tier | null,
     attackSheet: Sheet | null,
+    attackKey: number,
     sideDead: boolean,
     sideHurt: boolean,
     hurtKey: number,
@@ -191,6 +197,7 @@ export default function BattleStage({
         spot={spots[index]}
         activeTier={activeTier}
         attackSheet={attackSheet}
+        attackKey={attackKey}
         sideDead={sideDead}
         sideHurt={sideHurt}
         hurtKey={hurtKey}
@@ -204,8 +211,8 @@ export default function BattleStage({
       <BattleCamera focus={focus}>
         <ParallaxScene battleground={battleground} />
         <div className="absolute inset-0">
-          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, playerAttackSheet, playerDead, playerHurtActive, playerHurtKey, false, 'player')}
-          {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, opponentAttackSheet, opponentDead, opponentHurtActive, opponentHurtKey, true, 'opponent')}
+          {renderTeam(playerTeam, battleground.playerTeam, activePlayerTier, playerAttackSheet, 0, playerDead, playerHurtActive, playerHurtKey, false, 'player')}
+          {renderTeam(opponentTeam, battleground.opponentTeam, activeOpponentTier, opponentAttackSheet, opponentAttackKey, opponentDead, opponentHurtActive, opponentHurtKey, true, 'opponent')}
         </div>
       </BattleCamera>
     </div>
