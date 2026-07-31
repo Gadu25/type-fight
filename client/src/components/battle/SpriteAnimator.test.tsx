@@ -69,6 +69,21 @@ describe('SpriteAnimator', () => {
     expect(screen.getByAltText('Grunt')).toHaveStyle('transform: translateX(-512px)')
   })
 
+  it('detects frames for an already-loaded cached image without a load event', () => {
+    const origComplete = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete')
+    const origNatural = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'naturalWidth')
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', { configurable: true, get() { return true } })
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', { configurable: true, get() { return 768 } })
+    try {
+      render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
+      expect(screen.getByAltText('Grunt')).toHaveStyle('width: 768px')
+      expect(screen.getByAltText('Grunt')).toHaveStyle('opacity: 1')
+    } finally {
+      if (origComplete) Object.defineProperty(HTMLImageElement.prototype, 'complete', origComplete)
+      if (origNatural) Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', origNatural)
+    }
+  })
+
   it('loops in loop mode', () => {
     render(<SpriteAnimator src="/sprites/grunt/idle.png" alt="Grunt" duration={1000} mode="loop" />)
     loadImage('Grunt', 640)

@@ -17,6 +17,7 @@ export default function SpriteAnimator({ src, alt, height = 128, duration, mode,
   const [frameIndex, setFrameIndex] = useState(0)
   const onCompleteRef = useRef(onComplete)
   const firedRef = useRef(false)
+  const imgRef = useRef<HTMLImageElement | null>(null)
 
   useEffect(() => {
     onCompleteRef.current = onComplete
@@ -26,6 +27,11 @@ export default function SpriteAnimator({ src, alt, height = 128, duration, mode,
     setFrameIndex(0)
     setFrameCount(0)
     firedRef.current = false
+    const img = imgRef.current
+    if (img && img.complete && img.naturalWidth > 0) {
+      const count = Math.floor(img.naturalWidth / 128)
+      if (count > 0) setFrameCount(count)
+    }
   }, [src])
 
   useEffect(() => {
@@ -56,6 +62,7 @@ export default function SpriteAnimator({ src, alt, height = 128, duration, mode,
   return (
     <div style={{ width: height, height, overflow: 'hidden' }}>
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         draggable={false}
