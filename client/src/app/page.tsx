@@ -36,7 +36,7 @@ export default function Home() {
     });
     
     const data = await response.json();
-    localStorage.setItem('playerId', data.player_id);
+    sessionStorage.setItem('playerId', data.player_id);
     
     router.push(`/room/${data.room_id}`);
   };

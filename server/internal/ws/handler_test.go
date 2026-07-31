@@ -269,7 +269,7 @@ func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 	msg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	data, _ := json.Marshal(msg)
@@ -282,7 +282,7 @@ func TestHandleSelectAttack_StoresAttack(t *testing.T) {
 		t.Fatal("room not found")
 	}
 	player := room.Players["player1"]
-	if player.CurrentAttack != "quick" {
+	if player.CurrentAttack != "grunt" {
 		t.Errorf("expected CurrentAttack 'quick', got '%s'", player.CurrentAttack)
 	}
 }
@@ -321,7 +321,7 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -332,8 +332,8 @@ func TestHandleAttackComplete_AppliesDamage(t *testing.T) {
 	completeMsg := CombatClientMessage{
 		Type: "attack_complete",
 		AttackComplete: &AttackCompletePayload{
-			Tier:    "quick",
-			Phrase:  "The sword shines bright",
+			Tier:    "grunt",
+			Phrase:  \"The sword shines bright\",
 			Correct: 22,
 			Total:   22,
 		},
@@ -404,7 +404,7 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -415,7 +415,7 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 	switchMsg := CombatClientMessage{
 		Type: "switch_attack",
 		SwitchAttack: &SwitchAttackPayload{
-			Tier: "heavy",
+			Tier: "paladin",
 		},
 	}
 	switchData, _ := json.Marshal(switchMsg)
@@ -428,7 +428,7 @@ func TestHandleSwitchAttack_UpdatesTier(t *testing.T) {
 		t.Fatal("room not found")
 	}
 	player := room.Players["player1"]
-	if player.CurrentAttack != "heavy" {
+	if player.CurrentAttack != "paladin" {
 		t.Errorf("expected CurrentAttack 'heavy', got '%s'", player.CurrentAttack)
 	}
 }
@@ -464,7 +464,7 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -485,7 +485,7 @@ func TestHandleSelectAttack_BroadcastsOpponentAttack(t *testing.T) {
 			if resp.OpponentAttack.PlayerID != "player1" {
 				t.Errorf("expected PlayerID 'player1', got '%s'", resp.OpponentAttack.PlayerID)
 			}
-			if resp.OpponentAttack.Tier != "quick" {
+			if resp.OpponentAttack.Tier != "grunt" {
 				t.Errorf("expected Tier 'quick', got '%s'", resp.OpponentAttack.Tier)
 			}
 		}
@@ -527,7 +527,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
 		SelectAttack: &SelectAttackPayload{
-			Tier: "quick",
+			Tier: "grunt",
 		},
 	}
 	selectData, _ := json.Marshal(selectMsg)
@@ -538,7 +538,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 	switchMsg := CombatClientMessage{
 		Type: "switch_attack",
 		SwitchAttack: &SwitchAttackPayload{
-			Tier: "heavy",
+			Tier: "paladin",
 		},
 	}
 	switchData, _ := json.Marshal(switchMsg)
@@ -551,7 +551,7 @@ func TestHandleSwitchAttack_BroadcastsOpponentAttack(t *testing.T) {
 		if err := json.Unmarshal(msgBytes, &resp); err != nil {
 			continue
 		}
-		if resp.Type == "opponent_attack" && resp.OpponentAttack != nil && resp.OpponentAttack.Tier == "heavy" {
+		if resp.Type == "opponent_attack" && resp.OpponentAttack != nil && resp.OpponentAttack.Tier == "paladin" {
 			foundOpponentAttack = true
 			if resp.OpponentAttack.PlayerID != "player1" {
 				t.Errorf("expected PlayerID 'player1', got '%s'", resp.OpponentAttack.PlayerID)
@@ -599,7 +599,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	// Select ultimate attack on player1
 	selectMsg := CombatClientMessage{
 		Type: "select_attack",
-		SelectAttack: &SelectAttackPayload{Tier: "ultimate"},
+		SelectAttack: &SelectAttackPayload{Tier: "wizard"},
 	}
 	selectData, _ := json.Marshal(selectMsg)
 	handler.handleSelectAttack(p2Conn, room.ID, "player1", selectData)
@@ -609,7 +609,7 @@ func TestHandleAttackComplete_LethalSendsBattleOver(t *testing.T) {
 	completeMsg := CombatClientMessage{
 		Type: "attack_complete",
 		AttackComplete: &AttackCompletePayload{
-			Tier:    "ultimate",
+			Tier:    "wizard",
 			Phrase:  "The ancient civilization discovered forgotten secrets beneath the endless mountains that stretched beyond the horizon",
 			Correct: 98,
 			Total:   98,

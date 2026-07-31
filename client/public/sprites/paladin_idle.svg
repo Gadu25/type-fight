@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80">
+  <style>
+    @keyframes shimmer { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.25)} }
+    @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+    .shield { animation: shimmer 2s ease-in-out infinite; }
+    .c { animation: bob 1.2s ease-in-out infinite; }
+  </style>
+  <g class="c">
+    <!-- Great helmet -->
+    <rect x="19" y="2" width="26" height="18" rx="4" fill="#1d4ed8"/>
+    <!-- Helmet top ridge -->
+    <rect x="28" y="0" width="8" height="6" rx="2" fill="#1e40af"/>
+    <!-- Visor cross -->
+    <rect x="20" y="12" width="24" height="4" rx="1" fill="#1c1917"/>
+    <rect x="29" y="4" width="6" height="16" rx="1" fill="#1c1917"/>
+    <!-- Helmet glint -->
+    <rect x="21" y="4" width="4" height="8" rx="1" fill="#93c5fd" opacity="0.5"/>
+    <!-- Neck guard -->
+    <rect x="24" y="20" width="16" height="5" rx="2" fill="#1d4ed8"/>
+    <!-- Heavy body armor -->
+    <rect x="16" y="25" width="32" height="28" rx="3" fill="#2563eb"/>
+    <!-- Gold cross on chest -->
+    <rect x="29" y="26" width="6" height="26" fill="#fbbf24"/>
+    <rect x="16" y="36" width="32" height="6" fill="#fbbf24"/>
+    <!-- Pauldron left -->
+    <rect x="8" y="24" width="12" height="10" rx="3" fill="#1e40af"/>
+    <!-- Pauldron right -->
+    <rect x="44" y="24" width="12" height="10" rx="3" fill="#1e40af"/>
+    <!-- Left arm holding shield -->
+    <rect x="6" y="32" width="12" height="20" rx="2" fill="#2563eb"/>
+    <!-- Shield (held on left arm) -->
+    <g class="shield">
+      <rect x="0" y="26" width="14" height="22" rx="4" fill="#1d4ed8"/>
+      <rect x="2" y="28" width="10" height="18" rx="3" fill="#3b82f6"/>
+      <!-- Shield gold cross -->
+      <rect x="6" y="29" width="3" height="16" fill="#fbbf24"/>
+      <rect x="2" y="35" width="11" height="3" fill="#fbbf24"/>
+    </g>
+    <!-- Right arm with sword -->
+    <rect x="46" y="32" width="12" height="20" rx="2" fill="#2563eb"/>
+    <!-- Right hand -->
+    <rect x="48" y="48" width="10" height="6" rx="2" fill="#93c5fd"/>
+    <!-- Sword (angled, at rest) -->
+    <rect x="52" y="28" width="5" height="28" rx="2" fill="#e2e8f0" transform="rotate(10 52 40)"/>
+    <rect x="53" y="30" width="2" height="12" rx="1" fill="#fff" opacity="0.6" transform="rotate(10 52 40)"/>
+    <rect x="48" y="46" width="14" height="4" rx="2" fill="#9ca3af"/>
+    <!-- Belt -->
+    <rect x="16" y="49" width="32" height="5" fill="#1e40af"/>
+    <rect x="29" y="49" width="6" height="5" fill="#fbbf24"/>
+    <!-- Left leg -->
+    <rect x="18" y="54" width="12" height="20" rx="2" fill="#1d4ed8"/>
+    <!-- Right leg -->
+    <rect x="34" y="54" width="12" height="20" rx="2" fill="#1d4ed8"/>
+    <!-- Left sabatons -->
+    <rect x="14" y="70" width="18" height="8" rx="3" fill="#1e3a8a"/>
+    <!-- Right sabatons -->
+    <rect x="32" y="70" width="18" height="8" rx="3" fill="#1e3a8a"/>
+    <!-- Boot gold trim -->
+    <rect x="14" y="70" width="18" height="2" fill="#fbbf24" opacity="0.6"/>
+    <rect x="32" y="70" width="18" height="2" fill="#fbbf24" opacity="0.6"/>
+  </g>
+</svg>

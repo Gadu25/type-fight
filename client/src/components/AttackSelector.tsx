@@ -1,23 +1,32 @@
 'use client'
 
 import { useEffect } from 'react'
+import Image from 'next/image'
+
+type AttackTier = 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'
 
 interface AttackOption {
-  tier: 'quick' | 'normal' | 'heavy' | 'ultimate'
+  tier: AttackTier
   name: string
-  damage: number
+  value: number
   shortcut: string
+  color: string
+  borderColor: string
+  isHeal: boolean
 }
 
 const attacks: AttackOption[] = [
-  { tier: 'quick', name: 'Quick', damage: 80, shortcut: '1' },
-  { tier: 'normal', name: 'Normal', damage: 180, shortcut: '2' },
-  { tier: 'heavy', name: 'Heavy', damage: 350, shortcut: '3' },
-  { tier: 'ultimate', name: 'Ultimate', damage: 600, shortcut: '4' },
+  { tier: 'grunt',   name: 'Grunt',   value: 80,  shortcut: '1', color: '#ef4444', borderColor: '#dc2626', isHeal: false },
+  { tier: 'archer',  name: 'Archer',  value: 180, shortcut: '2', color: '#22c55e', borderColor: '#16a34a', isHeal: false },
+  { tier: 'paladin', name: 'Paladin', value: 350, shortcut: '3', color: '#3b82f6', borderColor: '#2563eb', isHeal: false },
+  { tier: 'wizard',  name: 'Wizard',  value: 600, shortcut: '4', color: '#a855f7', borderColor: '#9333ea', isHeal: false },
+  { tier: 'cleric',  name: 'Cleric',  value: 100, shortcut: '5', color: '#10b981', borderColor: '#059669', isHeal: true },
+  { tier: 'priest',  name: 'Priest',  value: 250, shortcut: '6', color: '#06b6d4', borderColor: '#0891b2', isHeal: true },
+  { tier: 'saint',   name: 'Saint',   value: 500, shortcut: '7', color: '#fbbf24', borderColor: '#d97706', isHeal: true },
 ]
 
 interface AttackSelectorProps {
-  onSelect: (tier: 'quick' | 'normal' | 'heavy' | 'ultimate') => void
+  onSelect: (tier: AttackTier) => void
   currentAttack: string
   disabled?: boolean
 }
@@ -27,9 +36,9 @@ export default function AttackSelector({ onSelect, currentAttack, disabled }: At
     if (disabled) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const attack = attacks.find(a => a.shortcut === e.key)
-      if (attack) {
-        onSelect(attack.tier)
+      const action = attacks.find(a => a.shortcut === e.key)
+      if (action) {
+        onSelect(action.tier)
       }
     }
 
@@ -37,27 +46,60 @@ export default function AttackSelector({ onSelect, currentAttack, disabled }: At
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onSelect, disabled])
 
+  const renderButton = (attack: AttackOption) => {
+    const isSelected = currentAttack === attack.tier
+    const spriteSrc = `/sprites/${attack.tier}_${isSelected ? 'attack' : 'idle'}.svg`
+
+    return (
+      <button
+        key={attack.tier}
+        onClick={() => onSelect(attack.tier)}
+        disabled={disabled}
+        className={`
+          flex flex-col items-center px-2 py-2 rounded-lg border transition-all
+          ${isSelected
+            ? 'bg-gray-800 ring-2'
+            : 'bg-gray-900 border-gray-700 hover:bg-gray-800'
+          }
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        `}
+        style={isSelected ? {
+          borderColor: attack.borderColor,
+          boxShadow: `0 0 12px ${attack.color}55`,
+          ['--tw-ring-color' as string]: attack.color,
+        } : {}}
+      >
+        <Image
+          src={spriteSrc}
+          alt={attack.name}
+          width={52}
+          height={62}
+          className="select-none"
+          unoptimized
+        />
+        <div className="text-sm font-bold mt-1" style={{ color: attack.color }}>
+          {attack.name}
+        </div>
+        <div className="text-xs text-gray-400">
+          {attack.isHeal ? `+${attack.value} hp` : `${attack.value} dmg`}
+        </div>
+        <div className="text-xs text-gray-500">[{attack.shortcut}]</div>
+      </button>
+    )
+  }
+
+  const attackTiers = attacks.filter(a => !a.isHeal)
+  const healTiers = attacks.filter(a => a.isHeal)
+
   return (
-    <div className="flex gap-2">
-      {attacks.map((attack) => (
-        <button
-          key={attack.tier}
-          onClick={() => onSelect(attack.tier)}
-          disabled={disabled}
-          className={`
-            px-3 py-2 rounded-lg border transition-all
-            ${currentAttack === attack.tier
-              ? 'bg-blue-600 border-blue-500 ring-2 ring-blue-400'
-              : 'bg-gray-800 border-gray-600 hover:bg-gray-700'
-            }
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          `}
-        >
-          <div className="text-sm font-medium">{attack.name}</div>
-          <div className="text-xs text-gray-400">{attack.damage} dmg</div>
-          <div className="text-xs text-gray-500">[{attack.shortcut}]</div>
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        {attackTiers.map(renderButton)}
+      </div>
+      <div className="flex gap-2 items-center">
+        <span className="text-xs text-gray-500 mr-1">heal</span>
+        {healTiers.map(renderButton)}
+      </div>
     </div>
   )
 }

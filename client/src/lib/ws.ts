@@ -19,9 +19,9 @@ export type ClientMessage =
   | { type: 'join'; player_name: string }
   | { type: 'ready' }
   | { type: 'start_game' }
-  | { type: 'select_attack'; select_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
-  | { type: 'attack_complete'; attack_complete: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate'; phrase: string; correct: number; total: number } }
-  | { type: 'switch_attack'; switch_attack: { tier: 'quick' | 'normal' | 'heavy' | 'ultimate' } }
+  | { type: 'select_attack'; select_attack: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint' } }
+  | { type: 'attack_complete'; attack_complete: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint'; phrase: string; correct: number; total: number } }
+  | { type: 'switch_attack'; switch_attack: { tier: 'grunt' | 'archer' | 'paladin' | 'wizard' | 'cleric' | 'priest' | 'saint' } }
   | { type: 'play_again' }
 
 export type ServerMessage =
@@ -41,6 +41,7 @@ export type ServerMessage =
   | { type: 'battle_over'; battle_over: { winner: string; reason: string } }
   | { type: 'player_left'; player_left: { playerID: string; new_host_id?: string; players: { id: string; name: string }[] } }
   | { type: 'opponent_attack'; opponent_attack: { playerID: string; tier: string } }
+  | { type: 'heal_update'; heal_update: { playerID: string; hp: number; heal: number } }
 
 export type MessageHandler = (message: ServerMessage) => void
 
